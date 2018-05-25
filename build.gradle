@@ -26,7 +26,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 group 'ch.unibas.dmi.dbis.chronos'
 // Semantic Versioning: http://semver.org/
-version '2.1.0-SNAPSHOT'
+version '2.1.0'
 
 
 description = "Chronos Agent"
@@ -39,12 +39,7 @@ targetCompatibility = 1.8
 
 dependencies {
     compile group: 'com.mashape.unirest', name: 'unirest-java', version: '1.4.9'
-    compile group: 'com.google.guava', name: 'guava', version: '21.0'
-
-    compile group: 'org.apache.httpcomponents', name: 'httpclient-win', version: '4.5.3'
-    compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.3'
-    compile group: 'org.apache.httpcomponents', name: 'httpcore', version: '4.4.6'
-    compile group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.3'
+    compile group: 'com.google.guava', name: 'guava', version: '25.0-jre'
 
     compile group: 'commons-validator', name: 'commons-validator', version: '1.6'
     compile group: 'commons-net', name: 'commons-net', version: '3.6'

@@ -25,9 +25,25 @@ SOFTWARE.
 package ch.unibas.dmi.dbis.chronos.agent;
 
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 import org.json.JSONObject;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 
 /**
@@ -151,6 +167,45 @@ public class ChronosJob implements Serializable {
         hash = 79 * hash + Objects.hashCode( this.username );
         hash = 79 * hash + Objects.hashCode( this.cdl );
         return hash;
+    }
+
+
+    public Map<String, String> getParsedCdl() throws ExecutionException {
+        Map<String, String> settings = new HashMap<>();
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse( new ByteArrayInputStream( cdl.getBytes( StandardCharsets.UTF_8 ) ) );
+
+            doc.getDocumentElement().normalize();
+
+            XPathFactory xpathFactory = XPathFactory.newInstance();
+            // XPath to find empty text nodes.
+            XPathExpression xpathExp = xpathFactory.newXPath().compile( "//text()[normalize-space(.) = '']" );
+            NodeList emptyTextNodes = (NodeList) xpathExp.evaluate( doc, XPathConstants.NODESET );
+
+            // Remove each empty text node from document.
+            for ( int i = 0; i < emptyTextNodes.getLength(); i++ ) {
+                Node emptyTextNode = emptyTextNodes.item( i );
+                emptyTextNode.getParentNode().removeChild( emptyTextNode );
+            }
+            if ( doc.getDocumentElement().getNodeName().equals( "chronos" ) ) {
+                if ( doc.getDocumentElement().getChildNodes().item( 1 ).getNodeName().equals( "evaluation" ) ) {
+                    NodeList nList = doc.getDocumentElement().getChildNodes().item( 1 ).getChildNodes();
+                    for ( int i = 0; i < nList.getLength(); i++ ) {
+                        Node nNode = nList.item( i );
+                        settings.put( nNode.getNodeName(), nNode.getFirstChild().getNodeValue() );
+                    }
+                } else {
+                    throw new ExecutionException( "Not a evaluation job!" );
+                }
+            } else {
+                throw new ExecutionException( "Not a valid CDL!" );
+            }
+        } catch ( ParserConfigurationException | IOException | SAXException | XPathExpressionException e ) {
+            throw new ExecutionException( "Exception while parsing cdl", e );
+        }
+        return settings;
     }
 
 

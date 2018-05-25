@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -269,7 +268,8 @@ public class ChronosHttpClient {
                 return job;
             }
         }
-        throw new IOException( "job.system does not match \"" + Arrays.toString( supportedSystemNames ) + "\"" );
+        return job;
+        //throw new IOException( "job.system (\"" + job.system + "\") does not match \"" + Arrays.toString( supportedSystemNames ) + "\"" );
     }
 
 
@@ -819,7 +819,7 @@ public class ChronosHttpClient {
                     final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
                     if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                        LOG.log( Level.WARNING, "Service returned: {}: {}",
+                        LOG.log( Level.WARNING, "Service returned: {0}: {1}",
                                 new Object[]{
                                         status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
                                         status.getString( ChronosRestApi.STATUS_MESSAGE_KEY )
@@ -837,7 +837,7 @@ public class ChronosHttpClient {
             while ( !pendingMessages.isEmpty() ) {
                 try {
                     pendingMessages.pollFirst().get();
-                } catch ( InterruptedException | ExecutionException ex ) {
+                } catch ( InterruptedException | java.util.concurrent.ExecutionException ex ) {
                     LOG.log( Level.WARNING, "Exception while flushing the log.", ex );
                 }
             }
