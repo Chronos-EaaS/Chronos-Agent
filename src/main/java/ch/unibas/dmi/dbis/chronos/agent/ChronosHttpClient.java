@@ -25,11 +25,14 @@ SOFTWARE.
 package ch.unibas.dmi.dbis.chronos.agent;
 
 
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -48,9 +51,11 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.validator.routines.InetAddressValidator;
+import org.apache.http.entity.ContentType;
 import org.json.JSONObject;
 
 
@@ -425,11 +430,19 @@ public class ChronosHttpClient {
         final Properties uploadConfiguration = new Properties();
         uploadConfiguration.put( "method", response.getString( "method" ) );
         uploadConfiguration.put( "hostname", response.getString( "hostname" ) );
-        uploadConfiguration.put( "port", Integer.toString( response.getInt( "port" ) ) );
-        uploadConfiguration.put( "username", response.getString( "username" ) );
-        uploadConfiguration.put( "password", response.getString( "password" ) );
         uploadConfiguration.put( "path", response.getString( "path" ) );
-        uploadConfiguration.put( "filename", response.getString( "filename" ) );
+        if (response.has( "port" )) {
+            uploadConfiguration.put( "port", Integer.toString( response.getInt( "port" ) ) );
+        }
+        if (response.has( "username" )) {
+            uploadConfiguration.put( "username", response.getString( "username" ) );
+        }
+        if (response.has( "password" )) {
+            uploadConfiguration.put( "password", response.getString( "password" ) );
+        }
+        if (response.has( "filename" )) {
+            uploadConfiguration.put( "filename", response.getString( "filename" ) );
+        }
 
         return uploadConfiguration;
     }
@@ -513,7 +526,22 @@ public class ChronosHttpClient {
 
 
     private void httpUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IOException, IllegalArgumentException {
-        throw new UnsupportedOperationException( "Not supported yet." );
+        try ( FileInputStream fis = new FileInputStream( file ) ) {
+            String url = uploadConfiguration.getProperty( "hostname" ) + uploadConfiguration.getProperty( "path" ) + "/action=upload/id=" + job.id;
+            HttpResponse<JsonNode> jsonResponse = Unirest.post(url)
+                    .field("name", "result")
+                    .field("result", fis, ContentType.APPLICATION_OCTET_STREAM, "results.zip")
+                    .asJson();
+            // Get result
+            StringWriter writer = new StringWriter();
+            IOUtils.copy(jsonResponse.getRawBody(), writer);
+            String resultString = writer.toString();
+            if (jsonResponse.getStatus() != ChronosRestApi.STATUS_CODE__SUCCESS ) {
+                LOG.log( Level.WARNING, resultString );
+            }
+        } catch ( UnirestException e ) {
+            LOG.log( Level.WARNING, "Exception in HTTP upload", e );
+        }
     }
 
 
@@ -626,9 +654,6 @@ public class ChronosHttpClient {
 
     public enum ChronosRestApi {
 
-        ANALYSIS( "analysis" ),
-        DATA( "data" ),
-        EVALUATION( "evaluation" ),
         JOB( "job" ),
         //
         ;

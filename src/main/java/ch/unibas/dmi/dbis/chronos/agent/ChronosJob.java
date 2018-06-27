@@ -75,8 +75,6 @@ public class ChronosJob implements Serializable {
     public final String username;
     // User Id
     public final int userId;
-    // Job type
-    public final ChronosHttpClient.JobType jobType;
     // Chronos Description Language (the actual job)
     public final String cdl;
     //
@@ -100,7 +98,6 @@ public class ChronosJob implements Serializable {
         this.name = job.getString( "name" );
         this.description = job.getString( "description" );
 
-        this.jobType = ChronosHttpClient.JobType.getType( job.getInt( "type" ) );
         this.system = job.getString( "system" ).toLowerCase(); // toLowerCase - since systems ('uniquename') is always lowercase
         this.environment = job.isNull( "environment" ) ? null : job.getString( "environment" );
 
@@ -128,7 +125,6 @@ public class ChronosJob implements Serializable {
         this.name = job.name;
         this.description = job.description;
 
-        this.jobType = job.jobType;
         this.system = job.system;
         this.environment = job.environment;
 
