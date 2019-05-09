@@ -6,7 +6,7 @@ buildscript {
     }
     dependencies {
         // Shadowing; used to make a fat jar
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.0.0'
     }
 }
 
