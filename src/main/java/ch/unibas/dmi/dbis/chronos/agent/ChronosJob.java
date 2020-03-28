@@ -54,7 +54,6 @@ import org.xml.sax.SAXException;
  */
 public class ChronosJob implements Serializable {
 
-
     public static final int EXCLUDE_PREPARE_PHASE = 0b00001; // 1
     public static final int EXCLUDE_WARM_UP_PHASE = 0b00010; // 2
     public static final int EXCLUDE_EXECUTE_PHASE = 0b00100; // 4

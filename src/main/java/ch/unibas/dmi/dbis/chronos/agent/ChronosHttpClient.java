@@ -46,11 +46,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
@@ -63,17 +60,15 @@ import org.json.JSONObject;
  * @author Alexander Stiemer (alexander.stiemer@unibas.ch)
  * @author Marco Vogt (marco.vogt@unibas.ch)
  */
+@Slf4j
 public class ChronosHttpClient {
-
-    private static final Logger LOG = Logger.getLogger( ChronosHttpClient.class.getName() );
-
 
     static {
         Runtime.getRuntime().addShutdownHook( new Thread( () -> {
             try {
                 Unirest.shutdown();
             } catch ( IOException ex ) {
-                LOG.log( Level.WARNING, "Exception while shutting down Unirest.", ex );
+                log.warn( "Exception while shutting down Unirest.", ex );
             }
         }, ChronosHttpClient.class.getSimpleName() + "-ShutdownHook" ) );
     }
@@ -141,7 +136,7 @@ public class ChronosHttpClient {
                 // NOTICE: intentional return!
                 return this.doGetJob( jobId );
             } catch ( UnirestException ex ) {
-                LOG.log( Level.WARNING, "Attempt " + getJobAttempt + " failed." + (getJobAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
+                log.warn( "Attempt " + getJobAttempt + " failed." + (getJobAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
                 lastException = ex;
             }
 
@@ -203,8 +198,7 @@ public class ChronosHttpClient {
 
 
     /**
-     * @param environment overloads this.environment if not null or empty; if null or empty, uses
-     * this.environment
+     * @param environment overloads this.environment if not null or empty; if null or empty, uses this.environment
      */
     public ChronosJob getNextJob( final String[] supportedSystemNames, String environment, final int[] excludeJobIds ) throws NoSuchElementException, IOException {
         int getNextJobAttempt = 0;
@@ -216,7 +210,7 @@ public class ChronosHttpClient {
                 // NOTICE: intentional return!
                 return this.doGetNextJob( supportedSystemNames, environment, excludeJobIds );
             } catch ( UnirestException ex ) {
-                LOG.log( Level.WARNING, "Attempt " + getNextJobAttempt + " failed." + (getNextJobAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
+                log.warn( "Attempt " + getNextJobAttempt + " failed." + (getNextJobAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
                 lastException = ex;
             }
 
@@ -299,7 +293,7 @@ public class ChronosHttpClient {
 
             return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
         } catch ( UnirestException ex ) {
-            LOG.log( Level.WARNING, "Exception while setting a status. This attempt will not be repeated by the library.", ex );
+            log.warn( "Exception while setting a status. This attempt will not be repeated by the library.", ex );
             return false;
         }
     }
@@ -317,7 +311,7 @@ public class ChronosHttpClient {
 
             return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
         } catch ( UnirestException ex ) {
-            LOG.log( Level.WARNING, "Exception while setting a job phase. This attempt will not be repeated by the library.", ex );
+            log.warn( "Exception while setting a job phase. This attempt will not be repeated by the library.", ex );
             return false;
         }
     }
@@ -355,7 +349,7 @@ public class ChronosHttpClient {
             return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
 
         } catch ( UnirestException ex ) {
-            LOG.log( Level.WARNING, "Exception while setting progress. This attempt will not be repeated by the library.", ex );
+            log.warn( "Exception while setting progress. This attempt will not be repeated by the library.", ex );
             return false;
         }
     }
@@ -390,7 +384,7 @@ public class ChronosHttpClient {
                 // NOTICE: intentional return!
                 return this.doGetUploadConfiguration( job, file );
             } catch ( UnirestException ex ) {
-                LOG.log( Level.WARNING, "Attempt " + getUploadConfigurationAttempt + " failed." + (getUploadConfigurationAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
+                log.warn( "Attempt " + getUploadConfigurationAttempt + " failed." + (getUploadConfigurationAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
                 lastException = ex;
             }
 
@@ -467,7 +461,7 @@ public class ChronosHttpClient {
 
 
     private void ftpUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IllegalArgumentException, IOException {
-        LOG.log( Level.FINE, uploadConfiguration.toString().replaceAll( "password=" + uploadConfiguration.getProperty( "password" ), "password=****" ) );
+        log.debug( uploadConfiguration.toString().replaceAll( "password=" + uploadConfiguration.getProperty( "password" ), "password=****" ) );
 
         final FTPClient client = new FTPClient();
 
@@ -482,7 +476,7 @@ public class ChronosHttpClient {
                     client.connect( uploadConfiguration.getProperty( "hostname" ), Integer.parseInt( uploadConfiguration.getProperty( "port" ) ) );
                     break attemptLoop;
                 } catch ( IOException ex ) {
-                    LOG.log( Level.WARNING, "Attempt " + ftpConnectAttempt + " failed." + (ftpConnectAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
+                    log.warn( "Attempt " + ftpConnectAttempt + " failed." + (ftpConnectAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
                     lastException = ex;
                 }
 
@@ -510,14 +504,14 @@ public class ChronosHttpClient {
 
             client.changeWorkingDirectory( uploadConfiguration.getProperty( "path" ) );
 
-            LOG.log( Level.INFO, "Storing " + file.getName() + " as " + uploadConfiguration.getProperty( "filename" ) );
+            log.info( "Storing " + file.getName() + " as " + uploadConfiguration.getProperty( "filename" ) );
             if ( !client.storeFile( uploadConfiguration.getProperty( "filename" ), fis ) ) {
                 throw new IOException( "Upload of " + file.getName() + " failed: storeFile returned false." );
             }
             client.rename( file.getName(), uploadConfiguration.getProperty( "filename" ) );
 
             if ( !client.logout() ) {
-                LOG.log( Level.WARNING, "FTP logout failed." );
+                log.warn( "FTP logout failed." );
             }
         } finally {
             client.disconnect();
@@ -537,10 +531,10 @@ public class ChronosHttpClient {
             IOUtils.copy(jsonResponse.getRawBody(), writer);
             String resultString = writer.toString();
             if (jsonResponse.getStatus() != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                LOG.log( Level.WARNING, resultString );
+                log.warn( resultString );
             }
         } catch ( UnirestException e ) {
-            LOG.log( Level.WARNING, "Exception in HTTP upload", e );
+            log.warn( "Exception in HTTP upload", e );
         }
     }
 
@@ -555,7 +549,7 @@ public class ChronosHttpClient {
                 // NOTICE: intentional return!
                 return this.doNotifyChronos( job, uploadConfiguration, parameters );
             } catch ( UnirestException ex ) {
-                LOG.log( Level.WARNING, "Attempt " + norifyChronosAttempt + " failed." + (norifyChronosAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
+                log.warn( "Attempt " + norifyChronosAttempt + " failed." + (norifyChronosAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
                 lastException = ex;
             }
 
@@ -805,31 +799,27 @@ public class ChronosHttpClient {
     /**
      * Handler which uploads the Java Logging output to Chronos
      */
-    public final class ChronosLogHandler extends ConsoleHandler {
+    public final class ChronosLogHandler {
 
         private final ExecutorService executor;
         private final Deque<Future<?>> pendingMessages;
 
-        private final ChronosJob job;
         private final Properties query;
         private final Map<String, Object> parameters;
 
-        private final SimpleFormatter formatter;
+        AtomicInteger sequenceNumber = new AtomicInteger();
 
 
         public ChronosLogHandler( final ChronosJob job ) {
             this.executor = Executors.newSingleThreadExecutor();
             this.pendingMessages = new ConcurrentLinkedDeque<>();
 
-            this.job = job;
             this.query = getQuery( job, "appendLog" );
             this.parameters = new HashMap<>();
-            this.formatter = new SimpleFormatter();
         }
 
 
-        @Override
-        public void publish( LogRecord record ) {
+        public void publish( String message ) {
             if ( executor.isShutdown() || executor.isTerminated() ) {
                 return;
             }
@@ -837,39 +827,37 @@ public class ChronosHttpClient {
             pendingMessages.add( executor.submit( () -> {
                 try {
                     parameters.clear();
-                    parameters.put( "recordSequenceNumber", record.getSequenceNumber() );
-                    parameters.put( "log", formatter.format( record ) );
+                    parameters.put( "recordSequenceNumber", sequenceNumber.incrementAndGet() );
+                    parameters.put( "log", message );
 
                     final JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( parameters ).asJson().getBody().getObject();
                     final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
                     if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                        LOG.log( Level.WARNING, "Service returned: {0}: {1}",
+                        log.warn( "Service returned: {0}: {1}",
                                 new Object[]{
                                         status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
                                         status.getString( ChronosRestApi.STATUS_MESSAGE_KEY )
                                 } );
                     }
                 } catch ( UnirestException ex ) {
-                    LOG.log( Level.WARNING, "exception while publishing log records.", ex );
+                    log.warn( "exception while publishing log records.", ex );
                 }
             } ) );
         }
 
 
-        @Override
         public void flush() {
             while ( !pendingMessages.isEmpty() ) {
                 try {
                     pendingMessages.pollFirst().get();
                 } catch ( InterruptedException | java.util.concurrent.ExecutionException ex ) {
-                    LOG.log( Level.WARNING, "Exception while flushing the log.", ex );
+                    log.warn( "Exception while flushing the log.", ex );
                 }
             }
         }
 
 
-        @Override
         public void close() throws SecurityException {
             executor.shutdown();
             flush();

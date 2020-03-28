@@ -25,6 +25,7 @@ SOFTWARE.
 package ch.unibas.dmi.dbis.chronos.agent;
 
 
+import ch.unibas.dmi.dbis.chronos.agent.ChronosHttpClient.ChronosLogHandler;
 import ch.unibas.dmi.dbis.chronos.agent.ChronosHttpClient.JobPhase;
 import com.google.common.io.Files;
 import java.io.File;
@@ -43,8 +44,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import lombok.extern.slf4j.Slf4j;
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.model.ZipParameters;
@@ -63,9 +63,8 @@ import org.json.JSONObject;
  * @author Marco Vogt (marco.vogt@unibas.ch)
  * @author Alexander Stiemer (alexander.stiemer@unibas.ch)
  */
+@Slf4j
 public abstract class AbstractChronosAgent extends Thread {
-
-    private static final Logger LOGGER = Logger.getLogger( AbstractChronosAgent.class.getName() );
 
     private static final long SLEEPING_TIME_VALUE = 10;
     private static final TimeUnit SLEEPING_TIME_UNIT = TimeUnit.SECONDS;
@@ -77,6 +76,8 @@ public abstract class AbstractChronosAgent extends Thread {
 
     private volatile boolean running = true;
     private volatile Thread agent;
+
+    private volatile ChronosHttpClient.ChronosLogHandler chronosLogHandler;
 
 
     protected AbstractChronosAgent( final InetAddress address, final int port, final boolean secure, final boolean useHostname ) {
@@ -145,12 +146,12 @@ public abstract class AbstractChronosAgent extends Thread {
                 final ChronosJob job;
                 try {
                     if ( !alreadyPrintedWaitingForJob ) {
-                        LOGGER.log( Level.INFO, "Requesting new job." );
+                        log.info( "Requesting new job." );
                     }
                     job = this.chronos.getNextJob( getSupportedSystemNames(), getEnvironment() ); // throws NoSuchElementException and Exception
                 } catch ( NoSuchElementException ex ) {
                     if ( !alreadyPrintedWaitingForJob ) {
-                        LOGGER.log( Level.FINE, "No job scheduled.", ex );
+                        log.debug( "No job scheduled.", ex );
                         System.out.print( "Waiting for job" );
                         alreadyPrintedWaitingForJob = true;
                     } else {
@@ -166,7 +167,7 @@ public abstract class AbstractChronosAgent extends Thread {
                     continue mainLoop; // !! Important !! -- Reloop
 
                 } catch ( Exception ex ) {
-                    LOGGER.log( Level.SEVERE, "IOException for chronos.getNextJob(" + Arrays.toString( getSupportedSystemNames() ) + "," + getEnvironment() + ")", ex );
+                    log.error( "IOException for chronos.getNextJob(" + Arrays.toString( getSupportedSystemNames() ) + "," + getEnvironment() + ")", ex );
 
                     try {
                         SLEEPING_TIME_UNIT.sleep( SLEEPING_TIME_VALUE );
@@ -184,7 +185,7 @@ public abstract class AbstractChronosAgent extends Thread {
 
                 // (2) Set the job's status to RUNNING
                 if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.RUNNING ) ) {
-                    LOGGER.log( Level.WARNING, "Cannot set JobStatus to RUNNING. ChronosHttpClient.setStatus returned false." );
+                    log.warn( "Cannot set JobStatus to RUNNING. ChronosHttpClient.setStatus returned false." );
                     // TODO: Throw some exception instead?
                 }
 
@@ -208,11 +209,12 @@ public abstract class AbstractChronosAgent extends Thread {
                 outputZipFile.deleteOnExit();
 
                 // (4.9) Add logger
-                final ChronosHttpClient.ChronosLogHandler chronosLogHandler = addChronosLogHandler( job );
+                final ChronosHttpClient.ChronosLogHandler chronosLogHandler = this.chronos.new ChronosLogHandler( job );
+                addChronosLogHandler( chronosLogHandler );
 
                 // (5) Execute the job
                 try {
-                    LOGGER.log( Level.INFO, job.toString() + " has now the state RUNNING." );
+                    log.info( job.toString() + " has now the state RUNNING." );
                     final Properties executionResults;
 
                     // (5.1) Register the job at the observer
@@ -232,7 +234,7 @@ public abstract class AbstractChronosAgent extends Thread {
                     try {
                         this.copyResults( job, outputDirectory );
                     } catch ( IOException ex ) {
-                        LOGGER.log( Level.WARNING, "Exception storing the results locally.", ex );
+                        log.warn( "Exception storing the results locally.", ex );
                     }
 
                     // (5.7) Zipping
@@ -241,19 +243,19 @@ public abstract class AbstractChronosAgent extends Thread {
                     zipResults.putAll( this.zip( job, outputDirectory, outputZipFile ) );
 
                     // (5.8) Upload
-                    LOGGER.log( Level.INFO, "Uploading results for " + job.toString() );
+                    log.info( "Uploading results for " + job.toString() );
                     this.chronos.upload( job, outputZipFile, zipResults );
 
                     // (5.9) Job is done
                     this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED );
-                    LOGGER.log( Level.INFO, job.toString() + " has now the state FINISHED." );
+                    log.info( job.toString() + " has now the state FINISHED." );
 
                 } catch ( Exception ex ) {
                     // (5.e) Reset execution status to FAILED for various reasons: ExecutionException, job is not accepted, etc.
-                    LOGGER.log( Level.WARNING, "Job " + job.toString() + " FAILED. Reason is:", ex );
+                    log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
 
                     if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FAILED ) ) {
-                        LOGGER.log( Level.SEVERE, "Cannot reset job " + job.toString() + " to status FAILED." );
+                        log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
                     }
                     this.failed( job );
 
@@ -263,7 +265,7 @@ public abstract class AbstractChronosAgent extends Thread {
                         this.abortedMonitor.cancelObservation( job );
                     } catch ( NoSuchElementException ex ) {
                         // There the job was not in the tasks list
-                        LOGGER.log( Level.FINE, "This job was not observed.", ex );
+                        log.debug( "This job was not observed.", ex );
                     }
 
                     // (5.11) Remove the logger
@@ -280,10 +282,10 @@ public abstract class AbstractChronosAgent extends Thread {
             } // mainLoop
 
         } catch ( RuntimeException ex ) {
-            LOGGER.log( Level.SEVERE, "Unhandled RuntimeException! Will be re-thrown!", ex );
+            log.error( "Unhandled RuntimeException! Will be re-thrown!", ex );
             throw ex;
         } catch ( Exception ex ) {
-            LOGGER.log( Level.SEVERE, "Unhandled Exception!", ex );
+            log.error( "Unhandled Exception!", ex );
         }
 
         this.agent = null;
@@ -326,21 +328,20 @@ public abstract class AbstractChronosAgent extends Thread {
      * in a chain, i.e., passes the returned data object of a phase over as an input parameter of the
      * successor phase (usually the direct successor, however, phases can be omitted)
      */
-    protected Properties executePhases( final ChronosJob job, final File inputDirectory,
-            final File outputDirectory ) throws ExecutionException {
+    protected Properties executePhases( final ChronosJob job, final File inputDirectory, final File outputDirectory ) throws ExecutionException {
 
         long startTime = 0L;
         final Properties results = new Properties();
 
         final Object preparePhaseData;
         if ( (job.phases & ChronosJob.EXCLUDE_PREPARE_PHASE) == ChronosJob.EXCLUDE_PREPARE_PHASE ) {
-            LOGGER.log( Level.INFO, "Skipping PREPARE phase." );
+            log.info( "Skipping PREPARE phase." );
             preparePhaseData = null;
         } else {
             if ( chronos.setCurrentJobPhase( job, JobPhase.PREPARE ) == false ) {
-                LOGGER.log( Level.WARNING, "Could not set job phase." );
+                log.warn( "Could not set job phase." );
             }
-            LOGGER.log( Level.INFO, "Executing PREPARE phase." );
+            log.info( "Executing PREPARE phase." );
             // START TIME MEASUREMENT
             startTime = System.currentTimeMillis();
             preparePhaseData = prepare( job, inputDirectory, outputDirectory, results, null );
@@ -350,13 +351,13 @@ public abstract class AbstractChronosAgent extends Thread {
 
         final Object warmUpPhaseData;
         if ( (job.phases & ChronosJob.EXCLUDE_WARM_UP_PHASE) == ChronosJob.EXCLUDE_WARM_UP_PHASE ) {
-            LOGGER.log( Level.INFO, "Skipping WARM_UP phase." );
+            log.info( "Skipping WARM_UP phase." );
             warmUpPhaseData = preparePhaseData;
         } else {
             if ( chronos.setCurrentJobPhase( job, JobPhase.WARM_UP ) == false ) {
-                LOGGER.log( Level.WARNING, "Could not set job phase." );
+                log.warn( "Could not set job phase." );
             }
-            LOGGER.log( Level.INFO, "Executing WARM_UP phase." );
+            log.info( "Executing WARM_UP phase." );
             // START TIME MEASUREMENT
             startTime = System.currentTimeMillis();
             warmUpPhaseData = warmUp( job, inputDirectory, outputDirectory, results, preparePhaseData );
@@ -366,13 +367,13 @@ public abstract class AbstractChronosAgent extends Thread {
 
         final Object executePhaseData;
         if ( (job.phases & ChronosJob.EXCLUDE_EXECUTE_PHASE) == ChronosJob.EXCLUDE_EXECUTE_PHASE ) {
-            LOGGER.log( Level.INFO, "Skipping EXECUTE phase." );
+            log.info( "Skipping EXECUTE phase." );
             executePhaseData = warmUpPhaseData;
         } else {
             if ( chronos.setCurrentJobPhase( job, JobPhase.EXECUTE ) == false ) {
-                LOGGER.log( Level.WARNING, "Could not set job phase." );
+                log.warn( "Could not set job phase." );
             }
-            LOGGER.log( Level.INFO, "Executing EXECUTE phase." );
+            log.info( "Executing EXECUTE phase." );
             // START TIME MEASUREMENT
             startTime = System.currentTimeMillis();
             executePhaseData = execute( job, inputDirectory, outputDirectory, results, warmUpPhaseData );
@@ -382,13 +383,13 @@ public abstract class AbstractChronosAgent extends Thread {
 
         final Object analyzePhaseData;
         if ( (job.phases & ChronosJob.EXCLUDE_ANALYZE_PHASE) == ChronosJob.EXCLUDE_ANALYZE_PHASE ) {
-            LOGGER.log( Level.INFO, "Skipping ANALYZE phase." );
+            log.info( "Skipping ANALYZE phase." );
             analyzePhaseData = executePhaseData;
         } else {
             if ( chronos.setCurrentJobPhase( job, JobPhase.ANALYZE ) == false ) {
-                LOGGER.log( Level.WARNING, "Could not set job phase." );
+                log.warn( "Could not set job phase." );
             }
-            LOGGER.log( Level.INFO, "Executing ANALYZE phase." );
+            log.info( "Executing ANALYZE phase." );
             // START TIME MEASUREMENT
             startTime = System.currentTimeMillis();
             analyzePhaseData = analyze( job, inputDirectory, outputDirectory, results, executePhaseData );
@@ -397,12 +398,12 @@ public abstract class AbstractChronosAgent extends Thread {
         }
 
         if ( (job.phases & ChronosJob.EXCLUDE_CLEAN_PHASE) == ChronosJob.EXCLUDE_CLEAN_PHASE ) {
-            LOGGER.log( Level.INFO, "Skipping CLEAN phase." );
+            log.info( "Skipping CLEAN phase." );
         } else {
             if ( chronos.setCurrentJobPhase( job, JobPhase.CLEAN ) == false ) {
-                LOGGER.log( Level.WARNING, "Could not set job phase." );
+                log.warn( "Could not set job phase." );
             }
-            LOGGER.log( Level.INFO, "Executing CLEAN phase." );
+            log.info( "Executing CLEAN phase." );
             // START TIME MEASUREMENT
             startTime = System.currentTimeMillis();
             clean( job, inputDirectory, outputDirectory, results, analyzePhaseData );
@@ -556,7 +557,7 @@ public abstract class AbstractChronosAgent extends Thread {
             zipParams.setCompressionMethod( Zip4jConstants.COMP_DEFLATE );
             zipParams.setCompressionLevel( Zip4jConstants.DEFLATE_LEVEL_NORMAL );
 
-            LOGGER.log( Level.INFO, "Zipping results." );
+            log.info( "Zipping results." );
             ZipFile outputZip = new ZipFile( outputZipFile );
             outputZip.addFolder( outputDirectory, zipParams );
 
@@ -606,17 +607,9 @@ public abstract class AbstractChronosAgent extends Thread {
      * Usually, the subclasses and other classes do not need to call this method. It is only required
      * if the run()-method is overwritten (with no super.run() call in it) and one does want to have
      * the fancy log-push feature.
-     *
-     * @return ChronosHttpClient.ChronosLogHandler which is needed for the removeChronosLogHandler(final ChronosHttpClient.ChronosLogHandler)-Method
      */
-    protected ChronosHttpClient.ChronosLogHandler addChronosLogHandler( ChronosJob job ) {
-        final ChronosHttpClient.ChronosLogHandler chronosLogHandler = this.chronos.new ChronosLogHandler( job );
-
-        LOGGER.log( Level.FINE, "Setting ChronosLogHandler ..." );
-        Logger.getLogger( "" ).addHandler( chronosLogHandler );
-        LOGGER.log( Level.FINE, "Setting ChronosLogHandler ... done." );
-
-        return chronosLogHandler;
+    protected void addChronosLogHandler( ChronosLogHandler chronosLogHandler ) {
+        // Do nothing
     }
 
 
@@ -626,9 +619,7 @@ public abstract class AbstractChronosAgent extends Thread {
      * the fancy log-push feature.
      */
     protected void removeChronosLogHandler( final ChronosHttpClient.ChronosLogHandler chronosLogHandler ) {
-        LOGGER.log( Level.FINE, "Removing ChronosLogHandler ..." );
-        Logger.getLogger( "" ).removeHandler( chronosLogHandler );
-        LOGGER.log( Level.FINE, "Removing ChronosLogHandler ... done." );
+        // Do nothing
     }
 
 
@@ -709,7 +700,7 @@ public abstract class AbstractChronosAgent extends Thread {
                     // Fetch status and compare if ABORTED
                     final ChronosHttpClient.JobStatus jobStatus = AbstractChronosAgent.this.chronos.getStatus( this.observable );
                     if ( jobStatus == ChronosHttpClient.JobStatus.ABORTED ) {
-                        LOGGER.log( Level.WARNING, "Aborting job {}", this.observable.id );
+                        log.warn( "Aborting job {}", this.observable.id );
                         AbstractChronosAgent.this.aborted( this.observable );
                         cancelAndRemoveObservable();
                     }
@@ -718,7 +709,7 @@ public abstract class AbstractChronosAgent extends Thread {
                         cancelAndRemoveObservable();
                     }
                 } catch ( NoSuchElementException | IOException ex ) {
-                    LOGGER.log( Level.WARNING, "getStatus for \"" + this.observable + "\" failed. Canceling monitoring!", ex );
+                    log.warn( "getStatus for \"" + this.observable + "\" failed. Canceling monitoring!", ex );
                     cancelAndRemoveObservable();
                 }
             }
