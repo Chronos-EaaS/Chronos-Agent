@@ -32,7 +32,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 group 'ch.unibas.dmi.dbis.chronos'
 // Semantic Versioning: http://semver.org/
-version '2.3.0-SNAPSHOT'
+version '2.3.0'
 
 
 description = "Chronos Agent"
