@@ -19,7 +19,6 @@ public class ChronosException extends Exception {
      *
      * @param message the detail message (which is saved for later retrieval by the {@link #getMessage()} method).
      * @param cause the cause (which is saved for later retrieval by the {@link #getCause()} method). (A "null" value is permitted, and indicates that the cause is nonexistent or unknown.)
-     * @since 1.4
      */
     public ChronosException( String message, Throwable cause ) {
         super( message, cause );
@@ -31,7 +30,6 @@ public class ChronosException extends Exception {
      * This constructor is useful for exceptions that are little more than wrappers for other throwables (for example, {@link java.security.PrivilegedActionException}).
      *
      * @param cause the cause (which is saved for later retrieval by the {@link #getCause()} method). (A "null" value is permitted, and indicates that the cause is nonexistent or unknown.)
-     * @since 1.4
      */
     public ChronosException( Throwable cause ) {
         super( cause );
