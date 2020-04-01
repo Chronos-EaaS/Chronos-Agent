@@ -126,7 +126,15 @@ public class ChronosHttpClient {
     }
 
 
-    public ChronosJob getJob( final int jobId ) throws NoSuchElementException, IOException {
+    /**
+     * @param jobId The ID for the ChronosJob we want to get.
+     * @return The ChronosJob corresponding to the given jobId
+     * @throws NoSuchElementException If there is no ChronosJob with the given jobId. Chronos Control returned ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST.
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
+     */
+    public ChronosJob getJob( final int jobId ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         int getJobAttempt = 0;
         Exception lastException;
 
@@ -136,25 +144,21 @@ public class ChronosHttpClient {
                 // NOTICE: intentional return!
                 return this.doGetJob( jobId );
             } catch ( UnirestException ex ) {
-                log.warn( "Attempt " + getJobAttempt + " failed." + (getJobAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
+                log.warn( "Attempt #" + getJobAttempt + " failed." + (getJobAttempt < maxAttempts ? " Retrying in " + TimeUnit.MILLISECONDS.toSeconds( failedAttemptSleepTimeMillis ) + " seconds ... " : ""), ex );
                 lastException = ex;
             }
 
             if ( getJobAttempt < maxAttempts ) {
-                try {
-                    Thread.sleep( failedAttemptSleepTimeMillis );
-                } catch ( InterruptedException ignored ) {
-                    // intentionally ignored
-                }
+                Thread.sleep( failedAttemptSleepTimeMillis );
             }
 
         } while ( getJobAttempt++ < maxAttempts );
 
-        throw new IOException( "The maximum number of attempts reached. See above WARNINGs for details. The last exception was: ", lastException );
+        throw new IOException( "The maximum number of connection attempts reached. See above WARNINGs for details. The last exception was: ", lastException );
     }
 
 
-    private ChronosJob doGetJob( final int jobId ) throws NoSuchElementException, UnirestException, IOException {
+    private ChronosJob doGetJob( final int jobId ) throws NoSuchElementException, UnirestException, ChronosException {
         final Properties query = getQuery( jobId );
 
         final JSONObject jsonResponse = Unirest.get( getUrl( address, port, ChronosRestApi.JOB, query ) ).asJson().getBody().getObject(); // throws UnirestException
@@ -166,7 +170,7 @@ public class ChronosHttpClient {
         }
 
         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-            throw new IOException( "Service returned: " + status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
+            throw new ChronosException( "Service returned: " + status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
         }
 
         return new ChronosJob( jsonResponse.getJSONObject( ChronosRestApi.RESPONSE_OBJECT_KEY ) );
@@ -174,33 +178,56 @@ public class ChronosHttpClient {
 
 
     /**
+     * @param supportedSystemNames List of system names to get only the jobs the system is build for.
+     * @throws NoSuchElementException If there is no ChronosJob with the given jobId. Chronos Control returned ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST.
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      * @see #getNextJob(String[], String, int[])
      */
-    public ChronosJob getNextJob( final String[] supportedSystemNames ) throws NoSuchElementException, IOException {
+    public ChronosJob getNextJob( final String[] supportedSystemNames ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         return getNextJob( supportedSystemNames, null, new int[0] );
     }
 
 
     /**
+     * @param supportedSystemNames List of system names to get only the jobs the system is build for.
+     * @param environment overloads this.environment if not null or empty; if null or empty, this.environment is used instead.
+     * @throws NoSuchElementException If there is no ChronosJob with the given jobId. Chronos Control returned ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST.
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      * @see #getNextJob(String[], String, int[])
      */
-    public ChronosJob getNextJob( final String[] supportedSystemNames, final String environment ) throws NoSuchElementException, IOException {
+    public ChronosJob getNextJob( final String[] supportedSystemNames, final String environment ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         return getNextJob( supportedSystemNames, environment, new int[0] );
     }
 
 
     /**
+     * @param supportedSystemNames List of system names to get only the jobs the system is build for.
+     * @param excludeJobIds List of IDs which are not considered to be the next job for this agent.
+     * @throws NoSuchElementException If there is no ChronosJob with the given jobId. Chronos Control returned ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST.
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      * @see #getNextJob(String[], String, int[])
      */
-    public ChronosJob getNextJob( final String[] supportedSystemNames, final int[] excludeJobIds ) throws NoSuchElementException, IOException {
+    public ChronosJob getNextJob( final String[] supportedSystemNames, final int[] excludeJobIds ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         return getNextJob( supportedSystemNames, null, excludeJobIds );
     }
 
 
     /**
-     * @param environment overloads this.environment if not null or empty; if null or empty, uses this.environment
+     * @param supportedSystemNames List of system names to get only the jobs the system is build for.
+     * @param environment overloads this.environment if not null or empty; if null or empty, this.environment is used instead.
+     * @param excludeJobIds List of IDs which are not considered to be the next job for this agent.
+     * @throws NoSuchElementException If there is no ChronosJob with the given jobId. Chronos Control returned ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST.
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      */
-    public ChronosJob getNextJob( final String[] supportedSystemNames, String environment, final int[] excludeJobIds ) throws NoSuchElementException, IOException {
+    public ChronosJob getNextJob( final String[] supportedSystemNames, String environment, final int[] excludeJobIds ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         int getNextJobAttempt = 0;
         Exception lastException;
 
@@ -215,11 +242,7 @@ public class ChronosHttpClient {
             }
 
             if ( getNextJobAttempt < maxAttempts ) {
-                try {
-                    Thread.sleep( failedAttemptSleepTimeMillis );
-                } catch ( InterruptedException ignored ) {
-                    // intentionally ignored
-                }
+                Thread.sleep( failedAttemptSleepTimeMillis );
             }
 
         } while ( getNextJobAttempt++ < maxAttempts );
@@ -228,7 +251,7 @@ public class ChronosHttpClient {
     }
 
 
-    private ChronosJob doGetNextJob( final String[] supportedSystemNames, String environment, final int[] excludeJobIds ) throws NoSuchElementException, UnirestException, IOException {
+    private ChronosJob doGetNextJob( final String[] supportedSystemNames, String environment, final int[] excludeJobIds ) throws NoSuchElementException, UnirestException, ChronosException {
 
         if ( supportedSystemNames == null ) {
             throw new NullPointerException( "supportedSystemNames == null" );
@@ -257,30 +280,41 @@ public class ChronosHttpClient {
         }
 
         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-            throw new IOException( "Service returned: " + status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
+            throw new ChronosException( "Service returned: " + status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
         }
 
         ChronosJob job = new ChronosJob( jsonResponse.getJSONObject( ChronosRestApi.RESPONSE_OBJECT_KEY ) );
+
+        if ( supportedSystemNames.length == 0 ) {
+            return job;
+        }
 
         for ( final String supportedSystemName : supportedSystemNames ) {
             if ( job.system.equalsIgnoreCase( supportedSystemName ) ) {
                 return job;
             }
         }
-        return job;
-        //throw new IOException( "job.system (\"" + job.system + "\") does not match \"" + Arrays.toString( supportedSystemNames ) + "\"" );
+
+        throw new ChronosException( "job.system (\"" + job.system + "\") does not match \"" + Arrays.toString( supportedSystemNames ) + "\"" );
     }
 
 
     /**
-     * @throws IOException IO or server-side error
+     * @param job The ChronosJob want to get the status of.
      * @throws NoSuchElementException If the given job does not exist
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      */
-    public ChronosHttpClient.JobStatus getStatus( final ChronosJob job ) throws NoSuchElementException, IOException {
+    public ChronosHttpClient.JobStatus getStatus( final ChronosJob job ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         return this.getJob( job.id ).status;
     }
 
 
+    /**
+     * @param newStatus The new status to set
+     * @return true, on successful set, false otherwise
+     */
     public boolean setStatus( final ChronosJob job, final JobStatus newStatus ) {
         try {
             final Properties query = getQuery( job );
@@ -299,6 +333,10 @@ public class ChronosHttpClient {
     }
 
 
+    /**
+     * @param newJobPhase The new job phase to set
+     * @return true, on successful set, false otherwise
+     */
     public boolean setCurrentJobPhase( final ChronosJob job, final JobPhase newJobPhase ) {
         try {
             final Properties query = getQuery( job );
@@ -319,14 +357,9 @@ public class ChronosHttpClient {
 
     /**
      * @param progress Integer [0, 100]. If less than zero it will be set to zero and if greater than 100 it will be set to 100.
-     * @return true, on successful set
-     * @throws IllegalArgumentException If job == null
+     * @return true, on successful set, false otherwise
      */
-    public boolean setProgress( final ChronosJob job, byte progress ) throws IllegalArgumentException {
-        if ( job == null ) {
-            throw new IllegalArgumentException( "ChronosJob job == null" );
-        }
-
+    public boolean setProgress( final ChronosJob job, byte progress ) {
         return this.setProgress( job.id, progress );
     }
 
@@ -334,7 +367,7 @@ public class ChronosHttpClient {
     /**
      * @param progress Integer [0, 100]. If less than zero it will be set to zero and if greater than
      * 100 it will be set to 100.
-     * @return true, on successful set
+     * @return true, on successful set, false otherwise
      */
     public boolean setProgress( final int jobId, byte progress ) {
         try {
@@ -355,7 +388,17 @@ public class ChronosHttpClient {
     }
 
 
-    public void upload( final ChronosJob job, final File file, Properties parameters ) throws IllegalArgumentException, IOException {
+    /**
+     * @param job The ChronosJob want to get the status of.
+     * @param file The file to upload.
+     * @param parameters Upload parameters.
+     * @throws IllegalArgumentException If job or file are <code>null</code> or if the upload credentials are wrong.
+     * @throws NoSuchElementException If the given job does not exist
+     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR. Here additionally, if there are issues during the upload to Chronos Control.
+     * @throws IOException If no connection to Chronos Control could be established or other I/O related issues. Check the last Exception and the log for details.
+     * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
+     */
+    public void upload( final ChronosJob job, final File file, Properties parameters ) throws IllegalArgumentException, NoSuchElementException, ChronosException, IOException, InterruptedException {
         if ( job == null ) {
             throw new IllegalArgumentException( "job == null" );
         }
@@ -374,7 +417,7 @@ public class ChronosHttpClient {
     }
 
 
-    private Properties getUploadConfiguration( final ChronosJob job, final File file ) throws NoSuchElementException, IOException {
+    private Properties getUploadConfiguration( final ChronosJob job, final File file ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         int getUploadConfigurationAttempt = 0;
         Exception lastException;
 
@@ -389,11 +432,7 @@ public class ChronosHttpClient {
             }
 
             if ( getUploadConfigurationAttempt < maxAttempts ) {
-                try {
-                    Thread.sleep( failedAttemptSleepTimeMillis );
-                } catch ( InterruptedException ignored ) {
-                    // intentionally ignored
-                }
+                Thread.sleep( failedAttemptSleepTimeMillis );
             }
 
         } while ( getUploadConfigurationAttempt++ < maxAttempts );
@@ -402,7 +441,7 @@ public class ChronosHttpClient {
     }
 
 
-    private Properties doGetUploadConfiguration( final ChronosJob job, final File file ) throws NoSuchElementException, IOException, UnirestException {
+    private Properties doGetUploadConfiguration( final ChronosJob job, final File file ) throws NoSuchElementException, ChronosException, UnirestException {
         final Properties query = getQuery( job, "getUploadTarget" );
 
         final Map<String, Object> parameters = new HashMap<>();
@@ -416,7 +455,7 @@ public class ChronosHttpClient {
         }
 
         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-            throw new IOException( "Service returned: " + status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
+            throw new ChronosException( "Service returned: " + status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
         }
 
         final JSONObject response = jsonResponse.getJSONObject( ChronosRestApi.RESPONSE_OBJECT_KEY );
@@ -425,16 +464,16 @@ public class ChronosHttpClient {
         uploadConfiguration.put( "method", response.getString( "method" ) );
         uploadConfiguration.put( "hostname", response.getString( "hostname" ) );
         uploadConfiguration.put( "path", response.getString( "path" ) );
-        if (response.has( "port" )) {
+        if ( response.has( "port" ) ) {
             uploadConfiguration.put( "port", Integer.toString( response.getInt( "port" ) ) );
         }
-        if (response.has( "username" )) {
+        if ( response.has( "username" ) ) {
             uploadConfiguration.put( "username", response.getString( "username" ) );
         }
-        if (response.has( "password" )) {
+        if ( response.has( "password" ) ) {
             uploadConfiguration.put( "password", response.getString( "password" ) );
         }
-        if (response.has( "filename" )) {
+        if ( response.has( "filename" ) ) {
             uploadConfiguration.put( "filename", response.getString( "filename" ) );
         }
 
@@ -442,7 +481,7 @@ public class ChronosHttpClient {
     }
 
 
-    private void executeUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IOException, IllegalArgumentException {
+    private void executeUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IllegalArgumentException, ChronosException, IOException, InterruptedException {
         switch ( uploadConfiguration.getProperty( "method" ).toLowerCase() ) {
             case "ftp":
                 ftpUpload( job, file, uploadConfiguration );
@@ -460,7 +499,7 @@ public class ChronosHttpClient {
     }
 
 
-    private void ftpUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IllegalArgumentException, IOException {
+    private void ftpUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IllegalArgumentException, ChronosException, IOException, InterruptedException {
         log.debug( uploadConfiguration.toString().replaceAll( "password=" + uploadConfiguration.getProperty( "password" ), "password=****" ) );
 
         final FTPClient client = new FTPClient();
@@ -481,11 +520,7 @@ public class ChronosHttpClient {
                 }
 
                 if ( ftpConnectAttempt < maxAttempts ) {
-                    try {
-                        Thread.sleep( failedAttemptSleepTimeMillis );
-                    } catch ( InterruptedException ignored ) {
-                        // intentionally ignored
-                    }
+                    Thread.sleep( failedAttemptSleepTimeMillis );
                 }
 
             } while ( ftpConnectAttempt++ < maxAttempts );
@@ -506,7 +541,7 @@ public class ChronosHttpClient {
 
             log.info( "Storing " + file.getName() + " as " + uploadConfiguration.getProperty( "filename" ) );
             if ( !client.storeFile( uploadConfiguration.getProperty( "filename" ), fis ) ) {
-                throw new IOException( "Upload of " + file.getName() + " failed: storeFile returned false." );
+                throw new ChronosException( "Upload of " + file.getName() + " failed: storeFile returned false." );
             }
             client.rename( file.getName(), uploadConfiguration.getProperty( "filename" ) );
 
@@ -519,27 +554,28 @@ public class ChronosHttpClient {
     }
 
 
-    private void httpUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IOException, IllegalArgumentException {
+    private void httpUpload( final ChronosJob job, final File file, final Properties uploadConfiguration ) throws IllegalArgumentException, IOException, ChronosException {
         try ( FileInputStream fis = new FileInputStream( file ) ) {
             String url = uploadConfiguration.getProperty( "hostname" ) + uploadConfiguration.getProperty( "path" ) + "/action=upload/id=" + job.id;
-            HttpResponse<JsonNode> jsonResponse = Unirest.post(url)
-                    .field("name", "result")
-                    .field("result", fis, ContentType.APPLICATION_OCTET_STREAM, "results.zip")
+            HttpResponse<JsonNode> jsonResponse = Unirest.post( url )
+                    .field( "name", "result" )
+                    .field( "result", fis, ContentType.APPLICATION_OCTET_STREAM, "results.zip" )
                     .asJson();
             // Get result
             StringWriter writer = new StringWriter();
-            IOUtils.copy(jsonResponse.getRawBody(), writer);
+            IOUtils.copy( jsonResponse.getRawBody(), writer );
             String resultString = writer.toString();
-            if (jsonResponse.getStatus() != ChronosRestApi.STATUS_CODE__SUCCESS ) {
+            if ( jsonResponse.getStatus() != ChronosRestApi.STATUS_CODE__SUCCESS ) {
                 log.warn( resultString );
             }
         } catch ( UnirestException e ) {
             log.warn( "Exception in HTTP upload", e );
+            throw new ChronosException( "Exception during HTTP upload", e );
         }
     }
 
 
-    private boolean notifyChronos( final ChronosJob job, final Properties uploadConfiguration, final Properties parameters ) throws IOException {
+    private boolean notifyChronos( final ChronosJob job, final Properties uploadConfiguration, final Properties parameters ) throws IOException, InterruptedException {
         int norifyChronosAttempt = 0;
         Exception lastException;
 
@@ -554,11 +590,7 @@ public class ChronosHttpClient {
             }
 
             if ( norifyChronosAttempt < maxAttempts ) {
-                try {
-                    Thread.sleep( failedAttemptSleepTimeMillis );
-                } catch ( InterruptedException ignored ) {
-                    // intentionally ignored
-                }
+                Thread.sleep( failedAttemptSleepTimeMillis );
             }
 
         } while ( norifyChronosAttempt++ < maxAttempts );
@@ -629,7 +661,7 @@ public class ChronosHttpClient {
             url.append( address.getHostAddress() );
         }
         if ( port != 80 && port != 443 ) {
-            url.append( ":" ).append( Integer.toString( port ) );
+            url.append( ":" ).append( port );
         }
 
         // Path
@@ -711,7 +743,11 @@ public class ChronosHttpClient {
         }
 
 
-        public static ChronosHttpClient.JobPhase getJobPhase( final int phaseId ) {
+        /**
+         * @return The ChronosHttpClient.JobPhase for the given phaseId
+         * @throws NoSuchElementException If there is no ChronosHttpClient.JobPhase for the given phaseId
+         */
+        public static ChronosHttpClient.JobPhase getJobPhase( final int phaseId ) throws NoSuchElementException {
             for ( ChronosHttpClient.JobPhase s : values() ) {
                 if ( s.phaseId == phaseId ) {
                     return s;
@@ -745,7 +781,11 @@ public class ChronosHttpClient {
         }
 
 
-        public static ChronosHttpClient.JobStatus getStatus( final int statusId ) {
+        /**
+         * @return The ChronosHttpClient.JobStatus for the given statusId
+         * @throws NoSuchElementException If there is no ChronosHttpClient.JobStatus for the given statusId
+         */
+        public static ChronosHttpClient.JobStatus getStatus( final int statusId ) throws NoSuchElementException {
             for ( ChronosHttpClient.JobStatus s : values() ) {
                 if ( s.statusId == statusId ) {
                     return s;
@@ -780,7 +820,11 @@ public class ChronosHttpClient {
         }
 
 
-        public static ChronosHttpClient.JobType getType( final int jobTypeId ) {
+        /**
+         * @return The ChronosHttpClient.JobType for the given jobTypeId
+         * @throws NoSuchElementException If there is no ChronosHttpClient.JobType for the given jobTypeId
+         */
+        public static ChronosHttpClient.JobType getType( final int jobTypeId ) throws NoSuchElementException {
             for ( ChronosHttpClient.JobType s : values() ) {
                 if ( s.jobTypeId == jobTypeId ) {
                     return s;
@@ -847,18 +891,21 @@ public class ChronosHttpClient {
         }
 
 
-        public void flush() {
+        public void flush() throws InterruptedException {
             while ( !pendingMessages.isEmpty() ) {
                 try {
                     pendingMessages.pollFirst().get();
-                } catch ( InterruptedException | java.util.concurrent.ExecutionException ex ) {
+                } catch ( java.util.concurrent.ExecutionException ex ) {
                     log.warn( "Exception while flushing the log.", ex );
+                } catch ( InterruptedException ex ) {
+                    log.warn( "Exception while flushing the log.", ex );
+                    throw ex;
                 }
             }
         }
 
 
-        public void close() throws SecurityException {
+        public void close() throws SecurityException, InterruptedException {
             executor.shutdown();
             flush();
         }

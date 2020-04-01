@@ -1,14 +1,14 @@
 package ch.unibas.dmi.dbis.chronos.agent;
 
 
-public class ExecutionException extends Exception {
+public class ChronosException extends Exception {
 
     /**
      * Constructs a new exception with the specified detail message. The cause is not initialized, and may subsequently be initialized by a call to {@link #initCause}.
      *
      * @param message the detail message. The detail message is saved for later retrieval by the {@link #getMessage()} method.
      */
-    public ExecutionException( String message ) {
+    public ChronosException( String message ) {
         super( message );
     }
 
@@ -20,7 +20,7 @@ public class ExecutionException extends Exception {
      * @param message the detail message (which is saved for later retrieval by the {@link #getMessage()} method).
      * @param cause the cause (which is saved for later retrieval by the {@link #getCause()} method). (A "null" value is permitted, and indicates that the cause is nonexistent or unknown.)
      */
-    public ExecutionException( String message, Throwable cause ) {
+    public ChronosException( String message, Throwable cause ) {
         super( message, cause );
     }
 
@@ -31,7 +31,7 @@ public class ExecutionException extends Exception {
      *
      * @param cause the cause (which is saved for later retrieval by the {@link #getCause()} method). (A "null" value is permitted, and indicates that the cause is nonexistent or unknown.)
      */
-    public ExecutionException( Throwable cause ) {
+    public ChronosException( Throwable cause ) {
         super( cause );
     }
 }
