@@ -36,6 +36,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -69,7 +70,7 @@ public abstract class AbstractChronosAgent extends Thread {
     private static final long SLEEPING_TIME_VALUE = 10;
     private static final TimeUnit SLEEPING_TIME_UNIT = TimeUnit.SECONDS;
 
-    private static final Charset UTF_8 = Charset.forName( "UTF-8" );
+    private static final Charset UTF_8 = StandardCharsets.UTF_8;
 
     private final AbortedMonitor abortedMonitor = new AbortedMonitor();
     private final ChronosHttpClient chronos;
@@ -114,11 +115,11 @@ public abstract class AbstractChronosAgent extends Thread {
      * The agent's execution loop:
      * (1) Requesting new job
      * (2) Set the job's status to RUNNING
-     * (3) Register the job at the observer
+     * (3) --
      * (4) Create environment (e.g. in/output folders)
      * (4.9) Add chronos-push-logger
      * (5) Execute the job
-     * (5.1) --
+     * (5.1) Register the job at the observer
      * (5.2) Actual execution by calling execute
      * (5.3) --
      * (5.4) Save the Properties as json
@@ -148,7 +149,7 @@ public abstract class AbstractChronosAgent extends Thread {
                     if ( !alreadyPrintedWaitingForJob ) {
                         log.info( "Requesting new job." );
                     }
-                    job = this.chronos.getNextJob( getSupportedSystemNames(), getEnvironment() ); // throws NoSuchElementException and Exception
+                    job = this.chronos.getNextJob( getSupportedSystemNames(), getEnvironment() ); // throws NoSuchElementException, ChronosException, IOException, InterruptedException
                 } catch ( NoSuchElementException ex ) {
                     if ( !alreadyPrintedWaitingForJob ) {
                         log.debug( "No job scheduled.", ex );
@@ -224,6 +225,8 @@ public abstract class AbstractChronosAgent extends Thread {
                     // EXECUTE THE PHASES
                     executionResults = this.executePhases( job, inputDirectory, outputDirectory );
 
+                    // (5.3) --
+
                     // (5.4) Save the Properties as json
                     this.saveResults( executionResults, outputDirectory );
 
@@ -244,13 +247,13 @@ public abstract class AbstractChronosAgent extends Thread {
 
                     // (5.8) Upload
                     log.info( "Uploading results for " + job.toString() );
-                    this.chronos.upload( job, outputZipFile, zipResults );
+                    this.chronos.upload( job, outputZipFile, zipResults ); // throws IllegalArgumentException, NoSuchElementException, ChronosException, IOException, InterruptedException
 
                     // (5.9) Job is done
                     this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED );
                     log.info( job.toString() + " has now the state FINISHED." );
 
-                } catch ( Exception ex ) {
+                } catch ( IllegalArgumentException | NoSuchElementException | ChronosException | IOException ex ) {
                     // (5.e) Reset execution status to FAILED for various reasons: ExecutionException, job is not accepted, etc.
                     log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
 
@@ -258,6 +261,17 @@ public abstract class AbstractChronosAgent extends Thread {
                         log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
                     }
                     this.failed( job );
+
+                } catch ( InterruptedException ex ) {
+                    // (5.e) Reset execution status to ABORTED since we have been interrupted
+                    log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
+
+                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.ABORTED ) ) {
+                        log.error( "Cannot reset job " + job.toString() + " to status ABORTED." );
+                    }
+                    this.aborted( job );
+
+                    throw ex; // "Notify" higher levels
 
                 } finally {
                     // (5.10) De-register the job at the observer
@@ -281,6 +295,9 @@ public abstract class AbstractChronosAgent extends Thread {
                 FileUtils.deleteQuietly( tempDirectory );
             } // mainLoop
 
+        } catch ( InterruptedException ex ) {
+            log.warn( "The chronos agent has been interrupted!", ex );
+            Thread.currentThread().interrupt();
         } catch ( RuntimeException ex ) {
             log.error( "Unhandled RuntimeException! Will be re-thrown!", ex );
             throw ex;
@@ -678,7 +695,6 @@ public abstract class AbstractChronosAgent extends Thread {
 
             /**
              *
-             * @param observable
              */
             public AbortedMonitorTask( final ChronosJob observable ) {
                 this.observable = observable;
@@ -708,9 +724,13 @@ public abstract class AbstractChronosAgent extends Thread {
                         // Quietly cancelObservation and de-register this observable since it is already finished
                         cancelAndRemoveObservable();
                     }
-                } catch ( NoSuchElementException | IOException ex ) {
+                } catch ( NoSuchElementException | ChronosException | IOException ex ) {
                     log.warn( "getStatus for \"" + this.observable + "\" failed. Canceling monitoring!", ex );
                     cancelAndRemoveObservable();
+                } catch ( InterruptedException ex ) {
+                    log.warn( "We have been interrupted!", ex );
+                    cancelAndRemoveObservable();
+                    Thread.currentThread().interrupt();
                 }
             }
 
