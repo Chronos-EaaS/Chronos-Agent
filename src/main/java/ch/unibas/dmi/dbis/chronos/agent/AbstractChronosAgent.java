@@ -143,6 +143,12 @@ public abstract class AbstractChronosAgent extends Thread {
             // TODO: this method needs refactoring!
             mainLoop:
             while ( running ) {
+                if ( Thread.currentThread().isInterrupted() ) {
+                    log.debug( "Ending mainLoop. Reason: Interrupt flag is set." );
+                    this.running = false;
+                    break mainLoop;
+                }
+
                 // (1) Requesting new job
                 final ChronosJob job;
                 try {
