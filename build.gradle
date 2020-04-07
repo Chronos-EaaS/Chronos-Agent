@@ -35,7 +35,7 @@ apply plugin: 'org.sonarqube'
 
 group 'ch.unibas.dmi.dbis.chronos'
 // Semantic Versioning: http://semver.org/
-version '2.3.1-SNAPSHOT'
+version '2.3.1'
 
 
 description = "Chronos Agent"
