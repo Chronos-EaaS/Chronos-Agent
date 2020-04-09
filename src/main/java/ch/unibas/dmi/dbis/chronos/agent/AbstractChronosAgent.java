@@ -259,15 +259,6 @@ public abstract class AbstractChronosAgent extends Thread {
                     this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED );
                     log.info( job.toString() + " has now the state FINISHED." );
 
-                } catch ( IllegalArgumentException | NoSuchElementException | ChronosException | IOException ex ) {
-                    // (5.e) Reset execution status to FAILED for various reasons: ExecutionException, job is not accepted, etc.
-                    log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
-
-                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FAILED ) ) {
-                        log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
-                    }
-                    this.failed( job );
-
                 } catch ( InterruptedException ex ) {
                     // (5.e) Reset execution status to ABORTED since we have been interrupted
                     log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
@@ -279,6 +270,14 @@ public abstract class AbstractChronosAgent extends Thread {
 
                     throw ex; // "Notify" higher levels
 
+                } catch ( Exception ex ) {
+                    // (5.e) Reset execution status to FAILED for various reasons: ExecutionException, job is not accepted, etc.
+                    log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
+
+                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FAILED ) ) {
+                        log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
+                    }
+                    this.failed( job );
                 } finally {
                     // (5.10) De-register the job at the observer
                     try {
