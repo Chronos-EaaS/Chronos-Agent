@@ -885,7 +885,7 @@ public class ChronosHttpClient {
                                 } );
                     }
                 } catch ( UnirestException ex ) {
-                    log.warn( "exception while publishing log records.", ex );
+                    log.warn( "Exception while publishing log records.", ex );
                 }
             } ) );
         }
