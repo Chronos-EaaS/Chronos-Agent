@@ -4,7 +4,7 @@ plugins {
     id 'signing'
     id 'idea'
     id 'maven-publish'
-    id 'com.github.johnrengelman.shadow' version '7.1.0'
+    //id 'com.github.johnrengelman.shadow' version '7.1.0'
     id 'io.freefair.lombok' version '6.2.0'
 }
 
@@ -60,10 +60,10 @@ jar {
         attributes 'Version': project.version
     }
 }
-shadowJar {
+
+/*shadowJar {
     archiveClassifier.set('shadow')
-}
-assemble.dependsOn shadowJar
+}*/
 
 
 signing {
@@ -81,9 +81,6 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            artifact jar
-            artifact source: sourcesJar, classifier: 'sources', extension: 'jar'
-            artifact source: javadocJar, classifier: 'javadoc', extension: 'jar'
             pom {
                 name = 'Chronos Agent'
                 description = 'Reference implementation of a Chronos Agent.'
@@ -121,7 +118,7 @@ publishing {
         }
     }
 }
-task generatePom(group: 'publishing', dependsOn: "generatePomFileFor${project.name.capitalize()}Publication")
+//task generatePom(group: 'publishing', dependsOn: "generatePomFileFor${project.name.capitalize()}Publication")
 
 
 idea {
