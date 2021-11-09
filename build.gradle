@@ -1,42 +1,22 @@
 
-buildscript {
-    repositories {
-        mavenCentral()
-        jcenter()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
-    }
-
-    dependencies {
-        // Shadowing; used to make a fat jar
-        classpath group: 'com.github.jengelman.gradle.plugins', name: 'shadow', version: '5.2.0'
-        // Lombok (https://plugins.gradle.org/plugin/io.freefair.lombok)
-        classpath group: 'io.freefair.gradle', name: 'lombok-plugin', version: '4.1.6'
-        // SonarQube (https://plugins.gradle.org/plugin/org.sonarqube, GNU LGPL 3)
-        classpath group: 'org.sonarsource.scanner.gradle', name: 'sonarqube-gradle-plugin', version: '2.8'
-    }
+plugins {
+    id 'java-library'
+    id 'signing'
+    id 'idea'
+    id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '7.1.0'
+    id 'io.freefair.lombok' version '6.2.0'
 }
 
 
 repositories {
     mavenCentral()
-    jcenter()
 }
 
 
-apply plugin: 'idea'
-apply plugin: 'java-library'
-apply plugin: 'maven-publish'
-apply plugin: 'com.github.johnrengelman.shadow'
-apply plugin: 'io.freefair.lombok'
-apply plugin: 'org.sonarqube'
-
-
-group 'ch.unibas.dmi.dbis.chronos'
-// Semantic Versioning: http://semver.org/
+group 'org.chronos-eaas'
+archivesBaseName = "chronos-agent"
 version '2.3.2-SNAPSHOT'
-
 
 description = "Chronos Agent"
 
@@ -74,11 +54,21 @@ tasks.withType(JavaCompile) {
 jar {
     manifest {
         attributes 'Manifest-Version': '1.0'
-        attributes 'Copyright': 'Databases and Information Systems Group, Department Mathematics and Computer Science, University of Basel, Switzerland'
+        attributes 'Copyright': 'The Chronos Project'
         attributes 'Group': project.group
         attributes 'Name': project.name
         attributes 'Version': project.version
     }
+}
+shadowJar {
+    archiveClassifier.set('shadow')
+}
+assemble.dependsOn shadowJar
+
+
+signing {
+    required { gradle.taskGraph.hasTask("publish") }
+    sign configurations.archives
 }
 
 
@@ -89,12 +79,15 @@ javadoc {
 
 publishing {
     publications {
-        "${project.name}"(MavenPublication) {
+        mavenJava(MavenPublication) {
             from components.java
             artifact jar
             artifact source: sourcesJar, classifier: 'sources', extension: 'jar'
             artifact source: javadocJar, classifier: 'javadoc', extension: 'jar'
             pom {
+                name = 'Chronos Agent'
+                description = 'Reference implementation of a Chronos Agent.'
+                url = 'https://chronos-eaas.org/'
                 licenses {
                     license {
                         name = 'MIT License'
@@ -104,6 +97,26 @@ publishing {
                 scm {
                     url = 'https://github.com/Chronos-EaaS/Chronos-Agent/'
                 }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "OSSRH"
+            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_PASSWORD")
+            }
+        }
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/chronos-eaas/chronos-agent"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
             }
         }
     }
