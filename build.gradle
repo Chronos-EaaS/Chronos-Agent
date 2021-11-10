@@ -16,7 +16,7 @@ repositories {
 
 group 'org.chronos-eaas'
 archivesBaseName = "chronos-agent"
-version '2.3.3-SNAPSHOT'
+version '2.3.3'
 
 description = "Chronos Agent"
 
@@ -64,15 +64,6 @@ jar {
 /*shadowJar {
     archiveClassifier.set('shadow')
 }*/
-
-
-signing {
-    required { gradle.taskGraph.hasTask("publish") }
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign configurations.archives
-}
 
 
 javadoc {
@@ -129,6 +120,15 @@ publishing {
     }
 }
 //task generatePom(group: 'publishing', dependsOn: "generatePomFileFor${project.name.capitalize()}Publication")
+
+
+signing {
+    required { gradle.taskGraph.hasTask("publish") }
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.mavenJava
+}
 
 
 idea {
