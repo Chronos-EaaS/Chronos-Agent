@@ -9,7 +9,6 @@ Reference implementation of an agent library written in Java. This library handl
 * Extend the `AbstractChronosAgent` class, call `YourClass.start()` in your `main` method, and you are good to go!
   > Assuming that you already have a running [Chronos Control](https://github.com/Chronos-EaaS/Chronos-Control/) instance
 
->
 
 ## Roadmap
 See the [open issues](https://github.com/Chronos-EaaS/Chronos-Agent/issues) for a list of proposed features (and known issues).
