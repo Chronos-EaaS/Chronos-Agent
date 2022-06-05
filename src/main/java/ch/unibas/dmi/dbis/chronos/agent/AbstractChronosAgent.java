@@ -46,10 +46,10 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
+import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
-import net.lingala.zip4j.util.Zip4jConstants;
+import net.lingala.zip4j.model.enums.CompressionLevel;
+import net.lingala.zip4j.model.enums.CompressionMethod;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
 
@@ -572,21 +572,19 @@ public abstract class AbstractChronosAgent extends Thread {
 
 
     private Properties zip( final ChronosJob job, final File outputDirectory, final File outputZipFile ) throws ExecutionException {
-        try {
-            final Properties results = new Properties();
+        final Properties results = new Properties();
 
-            ZipParameters zipParams = new ZipParameters();
-            zipParams.setCompressionMethod( Zip4jConstants.COMP_DEFLATE );
-            zipParams.setCompressionLevel( Zip4jConstants.DEFLATE_LEVEL_NORMAL );
+        ZipParameters zipParams = new ZipParameters();
+        zipParams.setCompressionMethod( CompressionMethod.DEFLATE );
+        zipParams.setCompressionLevel( CompressionLevel.NORMAL );
 
-            log.info( "Zipping results." );
-            ZipFile outputZip = new ZipFile( outputZipFile );
+        log.info( "Zipping results." );
+        try ( ZipFile outputZip = new ZipFile( outputZipFile ) ) {
             outputZip.addFolder( outputDirectory, zipParams );
-
-            return results;
-        } catch ( ZipException ex ) {
-            throw new ExecutionException( ex );
+        } catch ( IOException e ) {
+            throw new RuntimeException( e );
         }
+        return results;
     }
 
 
