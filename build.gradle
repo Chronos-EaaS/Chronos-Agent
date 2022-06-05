@@ -30,10 +30,7 @@ java {
 
 
 dependencies {
-    /* ChronosJob.ChronosJob(org.json.JSONObject) is exposed to overwriting classes */
-    api group: 'org.json', name: 'json', version: '20220320' /* version '20160212' is used by com.mashape.unirest:unirest-java:1.4.9 */
-
-    implementation group: 'com.mashape.unirest', name: 'unirest-java', version: '1.4.9'
+    api group: 'com.konghq', name: 'unirest-java', version: '3.13.10'
     implementation group: 'com.google.guava', name: 'guava', version: '31.1-jre'
 
     implementation group: 'commons-validator', name: 'commons-validator', version: '1.7'

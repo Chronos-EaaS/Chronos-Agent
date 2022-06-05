@@ -24,15 +24,9 @@ SOFTWARE.
 
 package ch.unibas.dmi.dbis.chronos.agent;
 
-
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -47,13 +41,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import kong.unirest.ContentType;
+import kong.unirest.HttpResponse;
+import kong.unirest.JsonNode;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
+import kong.unirest.json.JSONObject;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.validator.routines.InetAddressValidator;
-import org.apache.http.entity.ContentType;
-import org.json.JSONObject;
 
 
 /**
@@ -64,13 +61,9 @@ import org.json.JSONObject;
 public class ChronosHttpClient {
 
     static {
-        Runtime.getRuntime().addShutdownHook( new Thread( () -> {
-            try {
-                Unirest.shutdown();
-            } catch ( IOException ex ) {
-                log.warn( "Exception while shutting down Unirest.", ex );
-            }
-        }, ChronosHttpClient.class.getSimpleName() + "-ShutdownHook" ) );
+        Runtime.getRuntime().addShutdownHook(
+                new Thread( Unirest::shutDown, ChronosHttpClient.class.getSimpleName() + "-ShutdownHook" )
+        );
     }
 
 
@@ -562,9 +555,7 @@ public class ChronosHttpClient {
                     .field( "result", fis, ContentType.APPLICATION_OCTET_STREAM, "results.zip" )
                     .asJson();
             // Get result
-            StringWriter writer = new StringWriter();
-            IOUtils.copy( jsonResponse.getRawBody(), writer );
-            String resultString = writer.toString();
+            String resultString = jsonResponse.getBody().toString();
             if ( jsonResponse.getStatus() != ChronosRestApi.STATUS_CODE__SUCCESS ) {
                 log.warn( resultString );
             }
