@@ -16,7 +16,7 @@ repositories {
 
 group 'org.chronos-eaas'
 archivesBaseName = "chronos-agent"
-version '2.3.4'
+version '2.3.5-SNAPSHOT'
 
 description = "Chronos Agent"
 
