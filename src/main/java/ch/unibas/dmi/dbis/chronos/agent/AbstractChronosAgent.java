@@ -348,7 +348,7 @@ public abstract class AbstractChronosAgent extends Thread {
      */
     protected Properties executePhases( final ChronosJob job, final File inputDirectory, final File outputDirectory ) throws ExecutionException {
 
-        long startTime = 0L;
+        long startTime;
         final Properties results = new Properties();
 
         final Object preparePhaseData;
@@ -627,7 +627,7 @@ public abstract class AbstractChronosAgent extends Thread {
 
 
     /**
-     * Watches if the job to observe is aborted/canceled at the Chronos Web Site.
+     * Watches if the job to observe is aborted/canceled at the Chronos website.
      * The job's state is fetched every 10 seconds (default) and compared against ABORTED
      */
     private class AbortedMonitor {
@@ -637,7 +637,7 @@ public abstract class AbstractChronosAgent extends Thread {
 
 
         /**
-         * Calls the observe(ChronosJob, long) method with the default sleeping time.
+         * Calls the <code>observe(ChronosJob, long)</code> method with the default sleeping time.
          *
          * @see #observe(ChronosJob, long)
          * @see AbstractChronosAgent#SLEEPING_TIME_VALUE

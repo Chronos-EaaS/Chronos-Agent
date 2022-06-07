@@ -640,6 +640,7 @@ public class ChronosHttpClient {
         if ( this.secure ) {
             url.append( "https://" );
         } else {
+            //noinspection HttpUrlsUsage
             url.append( "http://" );
         }
         if ( this.useHostname ) {
@@ -838,7 +839,7 @@ public class ChronosHttpClient {
         private final Properties query;
         private final Map<String, Object> parameters;
 
-        AtomicInteger sequenceNumber = new AtomicInteger();
+        final AtomicInteger sequenceNumber = new AtomicInteger();
 
 
         public ChronosLogHandler( final ChronosJob job ) {
@@ -865,11 +866,9 @@ public class ChronosHttpClient {
                     final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
                     if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                        log.warn( "Service returned: {0}: {1}",
-                                new Object[]{
-                                        status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
-                                        status.getString( ChronosRestApi.STATUS_MESSAGE_KEY )
-                                } );
+                        log.warn( "Service returned: {}: {}",
+                                status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
+                                status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
                     }
                 } catch ( UnirestException ex ) {
                     log.warn( "Exception while publishing log records.", ex );
