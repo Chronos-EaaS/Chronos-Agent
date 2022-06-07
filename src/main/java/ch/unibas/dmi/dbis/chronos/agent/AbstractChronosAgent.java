@@ -27,7 +27,6 @@ package ch.unibas.dmi.dbis.chronos.agent;
 
 import ch.unibas.dmi.dbis.chronos.agent.ChronosHttpClient.ChronosLogHandler;
 import ch.unibas.dmi.dbis.chronos.agent.ChronosHttpClient.JobPhase;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -37,6 +36,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -195,7 +195,7 @@ public abstract class AbstractChronosAgent extends Thread {
                 // (3) --
 
                 // (4) Create environment
-                final File tempDirectory = Files.createTempDir();
+                final File tempDirectory = Files.createTempDirectory( "chronos" ).toFile();
                 tempDirectory.deleteOnExit();
 
                 final File inputDirectory = new File( tempDirectory, "input" );
