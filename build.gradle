@@ -4,7 +4,6 @@ plugins {
     id 'signing'
     id 'idea'
     id 'maven-publish'
-    //id 'com.github.johnrengelman.shadow' version '7.1.0'
     id 'io.freefair.lombok' version '6.4.3'
 }
 
@@ -30,7 +29,7 @@ java {
 
 
 dependencies {
-    api group: 'com.konghq', name: 'unirest-java', version: '3.13.10'
+    implementation group: 'com.konghq', name: 'unirest-java', version: '3.13.10'
     implementation group: 'com.google.guava', name: 'guava', version: '31.1-jre'
 
     implementation group: 'commons-validator', name: 'commons-validator', version: '1.7'

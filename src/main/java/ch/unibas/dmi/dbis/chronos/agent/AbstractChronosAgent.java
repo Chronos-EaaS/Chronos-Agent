@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Databases and Information Systems Research Group, University of Basel, Switzerland
+Copyright (c) 2018-2022 The Chronos Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import kong.unirest.json.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
@@ -59,10 +58,7 @@ import org.apache.commons.io.FileUtils;
  * uploading of the results of a job provided by a Chronos HTTP API.
  *
  * If problems with SSL occur: https://confluence.atlassian.com/kb/connecting-to-ssl-services-802171215.html
- * Or use non secure connections.
- *
- * @author Marco Vogt (marco.vogt@unibas.ch)
- * @author Alexander Stiemer (alexander.stiemer@unibas.ch)
+ * Or use non-secure connections.
  */
 @Slf4j
 public abstract class AbstractChronosAgent extends Thread {
@@ -524,20 +520,7 @@ public abstract class AbstractChronosAgent extends Thread {
      */
     protected void saveResults( final Properties executionResults, final File outputDirectory ) throws IllegalStateException {
         final File resultsJsonFile = new File( outputDirectory, "results.json" );
-
-        JSONObject resultsJsonObject = new JSONObject();
-        for ( Map.Entry<Object, Object> result : executionResults.entrySet() ) {
-            resultsJsonObject.put( result.getKey().toString(), result.getValue().toString() );
-        }
-
-        try ( PrintWriter out = new PrintWriter( resultsJsonFile, UTF_8.name() ) ) {
-            out.println( resultsJsonObject.toString() );
-            out.flush();
-        } catch ( FileNotFoundException ex ) {
-            throw new IllegalStateException( ex );
-        } catch ( UnsupportedEncodingException ex ) {
-            throw new RuntimeException( ex );
-        }
+        Utils.saveResults( executionResults, resultsJsonFile );
     }
 
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Databases and Information Systems Research Group, University of Basel, Switzerland
+Copyright (c) 2018-2022 The Chronos Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -53,10 +53,6 @@ import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.validator.routines.InetAddressValidator;
 
 
-/**
- * @author Alexander Stiemer (alexander.stiemer@unibas.ch)
- * @author Marco Vogt (marco.vogt@unibas.ch)
- */
 @Slf4j
 public class ChronosHttpClient {
 
