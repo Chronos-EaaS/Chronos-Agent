@@ -567,7 +567,6 @@ public class ChronosHttpClient {
         Exception lastException;
 
         do {
-
             try {
                 // NOTICE: intentional return!
                 return this.doNotifyChronos( job, uploadConfiguration, parameters );
@@ -579,7 +578,6 @@ public class ChronosHttpClient {
             if ( norifyChronosAttempt < maxAttempts ) {
                 Thread.sleep( failedAttemptSleepTimeMillis );
             }
-
         } while ( norifyChronosAttempt++ < maxAttempts );
 
         throw new IOException( "The maximum number of attempts reached. See above WARNINGs for details. The last exception was: ", lastException );

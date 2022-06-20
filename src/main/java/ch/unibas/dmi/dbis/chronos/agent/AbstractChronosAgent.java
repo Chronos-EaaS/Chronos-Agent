@@ -45,6 +45,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
@@ -678,6 +679,8 @@ public abstract class AbstractChronosAgent extends Thread {
 
             private final ChronosJob observable;
 
+            private final AtomicInteger getStatusErrorCounter = new AtomicInteger( 0 );
+
 
             /**
              *
@@ -710,9 +713,13 @@ public abstract class AbstractChronosAgent extends Thread {
                         // Quietly cancelObservation and de-register this observable since it is already finished
                         cancelAndRemoveObservable();
                     }
+                    getStatusErrorCounter.set( 0 );
                 } catch ( NoSuchElementException | ChronosException | IOException ex ) {
-                    log.warn( "getStatus for \"" + this.observable + "\" failed. Canceling monitoring!", ex );
-                    cancelAndRemoveObservable();
+                    getStatusErrorCounter.incrementAndGet();
+                    if ( getStatusErrorCounter.get() % 10 == 0 ) {
+                        log.warn( "Unable to get status of \"" + this.observable + "\" since quite a while.", ex );
+                    }
+                    //cancelAndRemoveObservable();
                 } catch ( InterruptedException ex ) {
                     log.warn( "We have been interrupted!", ex );
                     cancelAndRemoveObservable();
