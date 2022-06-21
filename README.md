@@ -5,7 +5,7 @@ Reference implementation of an agent library written in Java. This library handl
 ## Getting Started
 
 * Chronos Agent is published to Maven Central. Make sure that you have `mavenCentral()` to the `repositories` in your gradle build file.
-* Add `implementation group: 'org.chronos-eaas', name: 'chronos-agent', version: '2.3.5'` to your `dependencies`.
+* Add `implementation group: 'org.chronos-eaas', name: 'chronos-agent', version: '2.4.1'` to your `dependencies`.
 * Extend the `AbstractChronosAgent` class, call `YourClass.start()` in your `main` method, and you are good to go!
   > Assuming that you already have a running [Chronos Control](https://github.com/Chronos-EaaS/Chronos-Control/) instance
 
