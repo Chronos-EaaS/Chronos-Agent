@@ -4,7 +4,7 @@ plugins {
     id 'signing'
     id 'idea'
     id 'maven-publish'
-    id 'io.freefair.lombok' version '6.4.3'
+    id 'io.freefair.lombok' version '8.4'
 }
 
 
@@ -29,19 +29,19 @@ java {
 
 
 dependencies {
-    implementation group: 'com.konghq', name: 'unirest-java', version: '3.13.10'
+    implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
 
     implementation group: 'commons-validator', name: 'commons-validator', version: '1.7'
-    implementation group: 'commons-net', name: 'commons-net', version: '3.8.0'
-    implementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+    implementation group: 'commons-net', name: 'commons-net', version: '3.10.0'
+    implementation group: 'commons-io', name: 'commons-io', version: '2.15.1'
 
-    implementation group: 'net.lingala.zip4j', name: 'zip4j', version: '2.10.0'
+    implementation group: 'net.lingala.zip4j', name: 'zip4j', version: '2.11.5'
 
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.36'
 }
 
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
