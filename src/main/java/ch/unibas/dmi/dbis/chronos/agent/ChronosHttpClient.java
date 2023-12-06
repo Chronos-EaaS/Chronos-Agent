@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018-2022 The Chronos Project
+Copyright (c) 2018-2023 The Chronos Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -316,7 +316,7 @@ public class ChronosHttpClient {
 
             return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
         } catch ( UnirestException ex ) {
-            log.warn( "Exception while setting a status. This attempt will not be repeated by the library.", ex );
+            log.warn( "Unable to send status update to Chronos Control. This attempt will not be repeated by the library." );
             return false;
         }
     }
@@ -338,7 +338,7 @@ public class ChronosHttpClient {
 
             return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
         } catch ( UnirestException ex ) {
-            log.warn( "Exception while setting a job phase. This attempt will not be repeated by the library.", ex );
+            log.warn( "Unable to report change of job phase to Chronos Control. This attempt will not be repeated by the library." );
             return false;
         }
     }
@@ -371,7 +371,7 @@ public class ChronosHttpClient {
             return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
 
         } catch ( UnirestException ex ) {
-            log.warn( "Exception while setting progress. This attempt will not be repeated by the library.", ex );
+            log.warn( "Unable to send progress update to Chronos Control. This attempt will not be repeated by the library." );
             return false;
         }
     }
