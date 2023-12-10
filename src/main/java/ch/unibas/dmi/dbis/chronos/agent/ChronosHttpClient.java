@@ -839,6 +839,8 @@ public class ChronosHttpClient {
 
         final AtomicInteger sequenceNumber = new AtomicInteger();
 
+        final static int MAX_RETRIES = 1;
+
 
         public ChronosLogHandler( final ChronosJob job ) {
             this.executor = Executors.newSingleThreadExecutor();
@@ -855,22 +857,36 @@ public class ChronosHttpClient {
             }
 
             pendingMessages.add( executor.submit( () -> {
-                try {
-                    parameters.clear();
-                    parameters.put( "recordSequenceNumber", sequenceNumber.incrementAndGet() );
-                    parameters.put( "log", message );
+                int attempt = 0;
+                while ( attempt < MAX_RETRIES ) {
+                    try {
+                        parameters.clear();
+                        parameters.put( "recordSequenceNumber", sequenceNumber.incrementAndGet() );
+                        parameters.put( "log", message );
 
-                    final JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( parameters ).asJson().getBody().getObject();
-                    final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
+                        JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) )
+                                .fields( parameters ).asJson().getBody().getObject();
+                        JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
-                    if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                        log.warn( "Service returned: {}: {}",
-                                status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
-                                status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
+                        if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS ) {
+                            return; // Success, exit retry loop
+                        } else {
+                            log.warn( "Service returned: {}: {}",
+                                    status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
+                                    status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
+                        }
+                    } catch ( UnirestException ex ) {
+                        log.debug( "Exception while publishing log records. Attempt {}: {}", attempt + 1, MAX_RETRIES + 1, ex );
                     }
-                } catch ( UnirestException ex ) {
-                    log.warn( "Exception while publishing log records.", ex );
+                    attempt++;
+                    try {
+                        TimeUnit.MILLISECONDS.sleep( 500 );
+                    } catch ( InterruptedException e ) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
+                log.warn( "Failed to publish log after {} attempts", MAX_RETRIES + 1 );
             } ) );
         }
 
