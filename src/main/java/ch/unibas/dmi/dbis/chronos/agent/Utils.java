@@ -29,8 +29,10 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import kong.unirest.json.JSONArray;
 import kong.unirest.json.JSONObject;
 
 class Utils {
@@ -38,7 +40,12 @@ class Utils {
     static void saveResults( final Properties executionResults, final File resultsJsonFile ) throws IllegalStateException {
         JSONObject resultsJsonObject = new JSONObject();
         for ( Map.Entry<Object, Object> result : executionResults.entrySet() ) {
-            resultsJsonObject.put( result.getKey().toString(), result.getValue().toString() );
+            Object obj = result.getValue();
+            if ( obj instanceof List<?> ) {
+                resultsJsonObject.put( result.getKey().toString(), new JSONArray( (List<?>) obj ) );
+            } else {
+                resultsJsonObject.put( result.getKey().toString(), obj.toString() );
+            }
         }
 
         try ( PrintWriter out = new PrintWriter( resultsJsonFile, StandardCharsets.UTF_8.name() ) ) {
