@@ -839,7 +839,7 @@ public class ChronosHttpClient {
 
         final AtomicInteger sequenceNumber = new AtomicInteger();
 
-        final static int MAX_RETRIES = 1;
+        final static int MAX_RETRIES = 2;
 
 
         public ChronosLogHandler( final ChronosJob job ) {
@@ -859,6 +859,14 @@ public class ChronosHttpClient {
             pendingMessages.add( executor.submit( () -> {
                 int attempt = 0;
                 while ( attempt < MAX_RETRIES ) {
+                    if ( attempt > 0 ) {
+                        try {
+                            TimeUnit.MILLISECONDS.sleep( 500 );
+                        } catch ( InterruptedException e ) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    }
                     try {
                         parameters.clear();
                         parameters.put( "recordSequenceNumber", sequenceNumber.incrementAndGet() );
@@ -879,12 +887,6 @@ public class ChronosHttpClient {
                         log.debug( "Exception while publishing log records. Attempt {}: {}", attempt + 1, MAX_RETRIES + 1, ex );
                     }
                     attempt++;
-                    try {
-                        TimeUnit.MILLISECONDS.sleep( 500 );
-                    } catch ( InterruptedException e ) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
                 }
                 log.warn( "Failed to publish log after {} attempts", MAX_RETRIES + 1 );
             } ) );
