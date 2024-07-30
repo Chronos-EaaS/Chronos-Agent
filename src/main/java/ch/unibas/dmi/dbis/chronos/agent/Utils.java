@@ -32,8 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import kong.unirest.json.JSONArray;
-import kong.unirest.json.JSONObject;
+import kong.unirest.core.json.JSONArray;
+import kong.unirest.core.json.JSONObject;
 
 class Utils {
 
