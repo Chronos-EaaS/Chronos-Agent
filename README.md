@@ -2,10 +2,12 @@
 
 Reference implementation of an agent library written in Java. This library handles all the communication with [Chronos Control](https://github.com/Chronos-EaaS/Chronos-Control) including the upload of the results. It provides an interface with all necessary methods required for adding Chronos support to an existing evaluation client.
 
+This library is compatible with Java version 11 and higher.
+
 ## Getting Started
 
 * Chronos Agent is published to Maven Central. Make sure that you have `mavenCentral()` to the `repositories` in your gradle build file.
-* Add `implementation group: 'org.chronos-eaas', name: 'chronos-agent', version: '2.4.2'` to your `dependencies`.
+* Add `implementation group: 'org.chronos-eaas', name: 'chronos-agent', version: '2.5.0'` to your `dependencies`.
 * Extend the `AbstractChronosAgent` class, call `YourClass.start()` in your `main` method, and you are good to go!
   > Assuming that you already have a running [Chronos Control](https://github.com/Chronos-EaaS/Chronos-Control/) instance
 
