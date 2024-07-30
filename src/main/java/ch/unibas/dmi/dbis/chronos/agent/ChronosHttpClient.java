@@ -679,6 +679,8 @@ public class ChronosHttpClient {
         public static final int STATUS_CODE__ERROR = 600;
         public static final int STATUS_CODE__NO_NEXT_JOB = 601;
         public static final int STATUS_CODE__JOB_DOES_NOT_EXIST = 602;
+        public static final int STATUS_CODE__OUTDATED_VERSION = 631;
+        public static final int STATUS_CODE__UNKNOWN_ENVIRONMENT = 632;
         public static final String STATUS_MESSAGE_KEY = "message";
 
         public static final String RESPONSE_OBJECT_KEY = "response";
@@ -750,8 +752,8 @@ public class ChronosHttpClient {
 
 
     public enum JobStatus {
-
-        SCHEDULED( 1 ),
+        SCHEDULED( 0 ),
+        SETUP( 1),
         RUNNING( 2 ),
         FINISHED( 3 ),
         ABORTED( -1 ),
