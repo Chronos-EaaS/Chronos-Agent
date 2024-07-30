@@ -46,6 +46,8 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
@@ -71,6 +73,10 @@ public abstract class AbstractChronosAgent extends Thread {
 
     private final AbortedMonitor abortedMonitor = new AbortedMonitor();
     private final ChronosHttpClient chronos;
+
+    @Getter
+    @Setter
+    private Integer singleJobId = null;
 
     private volatile boolean running = true;
     private volatile Thread agent;
@@ -148,40 +154,45 @@ public abstract class AbstractChronosAgent extends Thread {
 
                 // (1) Requesting new job
                 final ChronosJob job;
-                try {
-                    if ( !alreadyPrintedWaitingForJob ) {
-                        log.info( "Requesting new job." );
-                    }
-                    job = this.chronos.getNextJob( getSupportedSystemNames(), getEnvironment() ); // throws NoSuchElementException, ChronosException, IOException, InterruptedException
-                } catch ( NoSuchElementException ex ) {
-                    if ( !alreadyPrintedWaitingForJob ) {
-                        log.debug( "No job scheduled.", ex );
-                        System.out.print( "Waiting for job" );
-                        alreadyPrintedWaitingForJob = true;
-                    } else {
-                        System.out.print( "." );
-                    }
-
+                if ( singleJobId == null ) {
                     try {
-                        SLEEPING_TIME_UNIT.sleep( SLEEPING_TIME_VALUE );
-                    } catch ( InterruptedException ignored2 ) {
-                        // Ignore. Maybe this agent is to be shutdown.
+                        if ( !alreadyPrintedWaitingForJob ) {
+                            log.info( "Requesting new job." );
+                        }
+                        job = this.chronos.getNextJob( getSupportedSystemNames(), getEnvironment() ); // throws NoSuchElementException, ChronosException, IOException, InterruptedException
+                    } catch ( NoSuchElementException ex ) {
+                        if ( !alreadyPrintedWaitingForJob ) {
+                            log.debug( "No job scheduled.", ex );
+                            System.out.print( "Waiting for job" );
+                            alreadyPrintedWaitingForJob = true;
+                        } else {
+                            System.out.print( "." );
+                        }
+
+                        try {
+                            SLEEPING_TIME_UNIT.sleep( SLEEPING_TIME_VALUE );
+                        } catch ( InterruptedException ignored2 ) {
+                            // Ignore. Maybe this agent is to be shutdown.
+                        }
+
+                        continue mainLoop; // !! Important !! -- Reloop
+
+                    } catch ( Exception ex ) {
+                        log.error( "IOException for chronos.getNextJob(" + Arrays.toString( getSupportedSystemNames() ) + "," + getEnvironment() + ")", ex );
+
+                        try {
+                            SLEEPING_TIME_UNIT.sleep( SLEEPING_TIME_VALUE );
+                        } catch ( InterruptedException ignored ) {
+                            // Ignore. Maybe this agent is to be shutdown.
+                        }
+
+                        alreadyPrintedWaitingForJob = false;
+                        continue mainLoop; // !! Important !! -- Reloop
+
                     }
-
-                    continue mainLoop; // !! Important !! -- Reloop
-
-                } catch ( Exception ex ) {
-                    log.error( "IOException for chronos.getNextJob(" + Arrays.toString( getSupportedSystemNames() ) + "," + getEnvironment() + ")", ex );
-
-                    try {
-                        SLEEPING_TIME_UNIT.sleep( SLEEPING_TIME_VALUE );
-                    } catch ( InterruptedException ignored ) {
-                        // Ignore. Maybe this agent is to be shutdown.
-                    }
-
-                    alreadyPrintedWaitingForJob = false;
-                    continue mainLoop; // !! Important !! -- Reloop
-
+                } else {
+                    job = this.chronos.getJob( singleJobId );
+                    this.running = false; // only execute loop once
                 }
                 alreadyPrintedWaitingForJob = false;
 
@@ -732,6 +743,9 @@ public abstract class AbstractChronosAgent extends Thread {
                 AbortedMonitor.this.tasks.remove( this.observable );
                 this.cancel();
             }
+
         }
+
     }
+
 }
