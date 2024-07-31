@@ -1,24 +1,20 @@
-
 plugins {
     id 'java-library'
     id 'signing'
     id 'idea'
     id 'maven-publish'
     id 'io.freefair.lombok' version '8.6'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
-
 
 repositories {
     mavenCentral()
 }
 
-
-group 'org.chronos-eaas'
-archivesBaseName = "chronos-agent"
-version '2.5.0-SNAPSHOT'
-
-description = "Chronos Agent"
-
+group = 'org.chronos-eaas'
+archivesBaseName = 'chronos-agent'
+version = '2.5.0-SNAPSHOT'
+description = 'Chronos Agent'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -26,7 +22,6 @@ java {
     withJavadocJar()
     withSourcesJar()
 }
-
 
 dependencies {
     implementation group: 'com.konghq', name: 'unirest-java-core', version: '4.4.4' // MIT
@@ -41,54 +36,62 @@ dependencies {
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.13' // MIT
 }
 
-
-tasks.withType(JavaCompile).configureEach {
+tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
-
 jar {
     manifest {
-        attributes 'Manifest-Version': '1.0'
-        attributes 'Copyright': 'The Chronos Project'
-        attributes 'Group': project.group
-        attributes 'Name': project.name
-        attributes 'Version': project.version
+        attributes(
+            'Manifest-Version': '1.0',
+            'Copyright': 'The Chronos Project',
+            'Group': project.group,
+            'Name': project.name,
+            'Version': project.version
+        )
     }
+    dependsOn shadowJar
 }
 
-/*shadowJar {
+shadowJar {
     archiveClassifier.set('shadow')
-}*/
-
+    manifest {
+        attributes(
+            'Manifest-Version': '1.0',
+            'Copyright': 'The Chronos Project',
+            'Group': project.group,
+            'Name': project.name,
+            'Version': project.version
+        )
+    }
+}
 
 javadoc {
     failOnError = false
 }
-
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
             pom {
-                name = 'Chronos Agent'
-                description = 'Reference implementation of a Chronos Agent.'
-                url = 'https://chronos-eaas.org/'
+                name.set('Chronos Agent')
+                description.set('Reference implementation of a Chronos Agent.')
+                url.set('https://chronos-eaas.org/')
                 licenses {
                     license {
-                        name = 'MIT License'
-                        url = 'https://opensource.org/licenses/MIT'
+                        name.set('MIT License')
+                        url.set('https://opensource.org/licenses/MIT')
                     }
                 }
                 scm {
-                    url = 'https://github.com/Chronos-EaaS/Chronos-Agent/'
+                    url.set('https://github.com/Chronos-EaaS/Chronos-Agent/')
                 }
                 developers {
                     developer {
-                        id = 'chronos'
-                        name = 'Chronos'
-                        email = 'mail@chronos-eaas.org'
+                        id.set('chronos')
+                        name.set('Chronos')
+                        email.set('mail@chronos-eaas.org')
                     }
                 }
             }
@@ -97,9 +100,9 @@ publishing {
     repositories {
         maven {
             name = "OSSRH"
-            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
-            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            url = uri(version.endsWith('SNAPSHOT') ? 
+                      "https://s01.oss.sonatype.org/content/repositories/snapshots/" :
+                      "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials {
                 username = System.getenv("MAVEN_USERNAME")
                 password = System.getenv("MAVEN_PASSWORD")
@@ -107,7 +110,7 @@ publishing {
         }
         maven {
             name = "GitHubPackages"
-            url = "https://maven.pkg.github.com/chronos-eaas/chronos-agent"
+            url = uri("https://maven.pkg.github.com/chronos-eaas/chronos-agent")
             credentials {
                 username = System.getenv("GITHUB_ACTOR")
                 password = System.getenv("GITHUB_TOKEN")
@@ -115,25 +118,19 @@ publishing {
         }
     }
 }
-//task generatePom(group: 'publishing', dependsOn: "generatePomFileFor${project.name.capitalize()}Publication")
-
 
 signing {
     required { gradle.taskGraph.hasTask("publish") }
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign publishing.publications.mavenJava
+    useInMemoryPgpKeys(findProperty("signingKey"), findProperty("signingPassword"))
+    sign(publishing.publications["mavenJava"])
 }
-
 
 idea {
     module {
         downloadJavadoc = true
         downloadSources = true
-
         inheritOutputDirs = false
-        outputDir = file("${project.buildDir}/classes/main")
-        testOutputDir = file("${project.buildDir}/classes/test")
+        outputDir = file("$buildDir/classes/main")
+        testOutputDir = file("$buildDir/classes/test")
     }
 }
