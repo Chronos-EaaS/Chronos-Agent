@@ -286,6 +286,10 @@ public abstract class AbstractChronosAgent extends Thread {
                         log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
                     }
                     this.failed( job );
+
+                    if ( singleJobId != null ) {
+                        throw ex;
+                    }
                 } finally {
                     // (5.10) De-register the job at the observer
                     try {
@@ -311,11 +315,17 @@ public abstract class AbstractChronosAgent extends Thread {
         } catch ( InterruptedException ex ) {
             log.warn( "The chronos agent has been interrupted!", ex );
             Thread.currentThread().interrupt();
+            if ( singleJobId != null ) {
+                throw new RuntimeException( ex );
+            }
         } catch ( RuntimeException ex ) {
             log.error( "Unhandled RuntimeException! Will be re-thrown!", ex );
             throw ex;
         } catch ( Exception ex ) {
             log.error( "Unhandled Exception!", ex );
+            if ( singleJobId != null ) {
+                throw new RuntimeException( ex );
+            }
         }
 
         this.agent = null;
