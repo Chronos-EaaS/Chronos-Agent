@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -119,7 +120,7 @@ public class ChronosHttpClient {
      * @param jobId The ID for the ChronosJob we want to get.
      * @return The ChronosJob corresponding to the given jobId
      * @throws NoSuchElementException If there is no ChronosJob with the given jobId. Chronos Control returned ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST.
-     * @throws ChronosException Other problems regarding Chonos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
+     * @throws ChronosException Other problems regarding Chronos Control. For example, Chronos Control returned ChronosRestApi.STATUS_CODE__ERROR.
      * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
      * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      */
@@ -295,7 +296,7 @@ public class ChronosHttpClient {
      * @throws IOException If no connection to Chronos Control could be established. Check the last Exception and the log for details.
      * @throws InterruptedException If the thread is interrupted while sleeping between the connection attempts.
      */
-    public ChronosHttpClient.JobStatus getStatus( final ChronosJob job ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
+    public JobStatus getStatus( final ChronosJob job ) throws NoSuchElementException, ChronosException, IOException, InterruptedException {
         return this.getJob( job.id ).status;
     }
 
@@ -588,7 +589,7 @@ public class ChronosHttpClient {
         final Properties query = getQuery( job ); // query the job
 
         JSONObject parametersJson = new JSONObject(); // convert parameters to json
-        for ( Map.Entry<Object, Object> parameter : parameters.entrySet() ) {
+        for ( Entry<Object, Object> parameter : parameters.entrySet() ) {
             parametersJson.put( parameter.getKey().toString(), parameter.getValue().toString() );
         }
         final Map<String, Object> queryParameters = new HashMap<>();
@@ -735,8 +736,8 @@ public class ChronosHttpClient {
          * @return The ChronosHttpClient.JobPhase for the given phaseId
          * @throws NoSuchElementException If there is no ChronosHttpClient.JobPhase for the given phaseId
          */
-        public static ChronosHttpClient.JobPhase getJobPhase( final int phaseId ) throws NoSuchElementException {
-            for ( ChronosHttpClient.JobPhase s : values() ) {
+        public static JobPhase getJobPhase( final int phaseId ) throws NoSuchElementException {
+            for ( JobPhase s : values() ) {
                 if ( s.phaseId == phaseId ) {
                     return s;
                 }
@@ -753,7 +754,7 @@ public class ChronosHttpClient {
 
     public enum JobStatus {
         SCHEDULED( 0 ),
-        SETUP( 1),
+        SETUP( 1 ),
         RUNNING( 2 ),
         FINISHED( 3 ),
         ABORTED( -1 ),
@@ -773,8 +774,8 @@ public class ChronosHttpClient {
          * @return The ChronosHttpClient.JobStatus for the given statusId
          * @throws NoSuchElementException If there is no ChronosHttpClient.JobStatus for the given statusId
          */
-        public static ChronosHttpClient.JobStatus getStatus( final int statusId ) throws NoSuchElementException {
-            for ( ChronosHttpClient.JobStatus s : values() ) {
+        public static JobStatus getStatus( final int statusId ) throws NoSuchElementException {
+            for ( JobStatus s : values() ) {
                 if ( s.statusId == statusId ) {
                     return s;
                 }
@@ -812,8 +813,8 @@ public class ChronosHttpClient {
          * @return The ChronosHttpClient.JobType for the given jobTypeId
          * @throws NoSuchElementException If there is no ChronosHttpClient.JobType for the given jobTypeId
          */
-        public static ChronosHttpClient.JobType getType( final int jobTypeId ) throws NoSuchElementException {
-            for ( ChronosHttpClient.JobType s : values() ) {
+        public static JobType getType( final int jobTypeId ) throws NoSuchElementException {
+            for ( JobType s : values() ) {
                 if ( s.jobTypeId == jobTypeId ) {
                     return s;
                 }
@@ -913,5 +914,7 @@ public class ChronosHttpClient {
             executor.shutdown();
             flush();
         }
+
     }
+
 }
