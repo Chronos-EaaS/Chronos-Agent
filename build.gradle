@@ -3,7 +3,7 @@ plugins {
     id 'signing'
     id 'idea'
     id 'maven-publish'
-    id 'io.freefair.lombok' version '8.6'
+    id 'io.freefair.lombok' version '8.11'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
@@ -24,16 +24,16 @@ java {
 }
 
 dependencies {
-    implementation group: 'com.konghq', name: 'unirest-java-core', version: '4.4.4' // MIT
+    implementation group: 'com.konghq', name: 'unirest-java-core', version: '4.4.5' // MIT
     implementation group: 'com.konghq', name: 'unirest-object-mappers-gson', version: '4.2.9' // MIT
 
     implementation group: 'commons-validator', name: 'commons-validator', version: '1.9.0' // Apache 2.0
     implementation group: 'commons-net', name: 'commons-net', version: '3.11.1' // Apache 2.0
-    implementation group: 'commons-io', name: 'commons-io', version: '2.16.1' // Apache 2.0
+    implementation group: 'commons-io', name: 'commons-io', version: '2.18.0' // Apache 2.0
 
     implementation group: 'net.lingala.zip4j', name: 'zip4j', version: '2.11.5' // Apache 2.0
 
-    implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.13' // MIT
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.16' // MIT
 }
 
 tasks.withType(JavaCompile) {
