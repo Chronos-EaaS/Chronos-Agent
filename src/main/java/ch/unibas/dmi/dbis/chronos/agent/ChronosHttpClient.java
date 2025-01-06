@@ -31,7 +31,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
@@ -317,13 +316,7 @@ public class ChronosHttpClient {
         try {
             final Properties query = getQuery( job );
 
-            final Map<String, Object> parameters = new HashMap<>();
-            parameters.put( "status", newStatus.getStatusId() );
-
-            final JSONObject jsonResponse = Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( parameters ).asJson().getBody().getObject(); // throws UnirestException
-            final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
-
-            return status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
+            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "status", newStatus.getStatusId() ).asJson() ); // throws UnirestException
         } catch ( UnirestException ex ) {
             log.warn( "Unable to send status update to Chronos Control. This attempt will not be repeated by the library." );
             return false;
@@ -339,10 +332,7 @@ public class ChronosHttpClient {
         try {
             final Properties query = getQuery( job );
 
-            final Map<String, Object> parameters = new HashMap<>();
-            parameters.put( "currentPhase", newJobPhase.getJobPhaseId() );
-
-            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( parameters ).asJson() ); // throws UnirestException
+            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "currentPhase", newJobPhase.getJobPhaseId() ).asJson() ); // throws UnirestException
         } catch ( UnirestException ex ) {
             log.warn( "Unable to report change of job phase to Chronos Control. This attempt will not be repeated by the library." );
             return false;
@@ -368,10 +358,7 @@ public class ChronosHttpClient {
         try {
             final Properties query = getQuery( jobId );
 
-            final Map<String, Object> parameters = new HashMap<>();
-            parameters.put( "progress", Math.max( 0, Math.min( progress, 100 ) ) );
-
-            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( parameters ).asJson() ); // throws UnirestException
+            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "progress", Math.max( 0, Math.min( progress, 100 ) ) ).asJson() ); // throws UnirestException
         } catch ( UnirestException ex ) {
             log.warn( "Unable to send progress update to Chronos Control. This attempt will not be repeated by the library." );
             return false;
@@ -435,10 +422,7 @@ public class ChronosHttpClient {
     private Properties doGetUploadConfiguration( final ChronosJob job, final File file ) throws NoSuchElementException, ChronosException, UnirestException {
         final Properties query = getQuery( job, "getUploadTarget" );
 
-        final Map<String, Object> parameters = new HashMap<>();
-        parameters.put( "filesize", file.length() );
-
-        final JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( parameters ).asJson().getBody().getObject(); // throws UnirestException
+        final JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "filesize", file.length() ).asJson().getBody().getObject(); // throws UnirestException
         final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST ) {
@@ -593,10 +577,8 @@ public class ChronosHttpClient {
         for ( Entry<Object, Object> parameter : parameters.entrySet() ) {
             parametersJson.put( parameter.getKey().toString(), parameter.getValue().toString() );
         }
-        final Map<String, Object> queryParameters = new HashMap<>();
-        queryParameters.put( "result", parametersJson ); // the PATCH payload
 
-        return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).fields( queryParameters ).asJson() ); // throws UnirestException
+        return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "result", parametersJson ).asJson() ); // throws UnirestException
     }
 
 
@@ -836,7 +818,6 @@ public class ChronosHttpClient {
         private final Deque<Future<?>> pendingMessages;
 
         private final Properties query;
-        private final Map<String, Object> parameters;
 
         final AtomicInteger sequenceNumber = new AtomicInteger();
 
@@ -848,7 +829,6 @@ public class ChronosHttpClient {
             this.pendingMessages = new ConcurrentLinkedDeque<>();
 
             this.query = getQuery( job, "appendLog" );
-            this.parameters = new HashMap<>();
         }
 
 
@@ -869,12 +849,10 @@ public class ChronosHttpClient {
                         }
                     }
                     try {
-                        parameters.clear();
-                        parameters.put( "recordSequenceNumber", sequenceNumber.incrementAndGet() );
-                        parameters.put( "log", message );
-
                         JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) )
-                                .fields( parameters ).asJson().getBody().getObject();
+                                .field( "recordSequenceNumber", sequenceNumber.incrementAndGet() )
+                                .field( "log", message )
+                                .asJson().getBody().getObject();
                         JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
                         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS ) {
