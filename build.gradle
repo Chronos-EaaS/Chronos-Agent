@@ -13,7 +13,7 @@ repositories {
 
 group = 'org.chronos-eaas'
 archivesBaseName = 'chronos-agent'
-version = '2.5.1-SNAPSHOT'
+version = '2.5.1'
 description = 'Chronos Agent'
 
 java {
