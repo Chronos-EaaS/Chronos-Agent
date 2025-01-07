@@ -158,7 +158,7 @@ public class ChronosHttpClient {
     private ChronosJob doGetJob( final int jobId ) throws NoSuchElementException, UnirestException, ChronosException {
         final Properties query = getQuery( jobId );
 
-        final JSONObject jsonResponse = Unirest.get( getUrl( address, port, ChronosRestApi.JOB, query ) ).asJson().getBody().getObject(); // throws UnirestException
+        final JSONObject jsonResponse = Unirest.get( getUrl( address, port, ChronosRestApi.JOB, query ) ).accept( ContentType.APPLICATION_JSON ).asJson().getBody().getObject(); // throws UnirestException
 
         final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
@@ -269,7 +269,7 @@ public class ChronosHttpClient {
             query.put( "environment", environment );
         }
 
-        final JSONObject jsonResponse = Unirest.get( getUrl( address, port, ChronosRestApi.JOB, query ) ).asJson().getBody().getObject(); // throws UnirestException
+        final JSONObject jsonResponse = Unirest.get( getUrl( address, port, ChronosRestApi.JOB, query ) ).accept( ContentType.APPLICATION_JSON ).asJson().getBody().getObject(); // throws UnirestException
         final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__NO_NEXT_JOB ) {
@@ -316,7 +316,7 @@ public class ChronosHttpClient {
         try {
             final Properties query = getQuery( job );
 
-            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "status", newStatus.getStatusId() ).asJson() ); // throws UnirestException
+            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "status", newStatus.getStatusId() ).accept( ContentType.APPLICATION_JSON ).asJson() ); // throws UnirestException
         } catch ( UnirestException ex ) {
             log.warn( "Unable to send status update to Chronos Control. This attempt will not be repeated by the library." );
             return false;
@@ -332,7 +332,7 @@ public class ChronosHttpClient {
         try {
             final Properties query = getQuery( job );
 
-            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "currentPhase", newJobPhase.getJobPhaseId() ).asJson() ); // throws UnirestException
+            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "currentPhase", newJobPhase.getJobPhaseId() ).accept( ContentType.APPLICATION_JSON ).asJson() ); // throws UnirestException
         } catch ( UnirestException ex ) {
             log.warn( "Unable to report change of job phase to Chronos Control. This attempt will not be repeated by the library." );
             return false;
@@ -358,7 +358,7 @@ public class ChronosHttpClient {
         try {
             final Properties query = getQuery( jobId );
 
-            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "progress", Math.max( 0, Math.min( progress, 100 ) ) ).asJson() ); // throws UnirestException
+            return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "progress", Math.max( 0, Math.min( progress, 100 ) ) ).accept( ContentType.APPLICATION_JSON ).asJson() ); // throws UnirestException
         } catch ( UnirestException ex ) {
             log.warn( "Unable to send progress update to Chronos Control. This attempt will not be repeated by the library." );
             return false;
@@ -422,7 +422,7 @@ public class ChronosHttpClient {
     private Properties doGetUploadConfiguration( final ChronosJob job, final File file ) throws NoSuchElementException, ChronosException, UnirestException {
         final Properties query = getQuery( job, "getUploadTarget" );
 
-        final JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "filesize", file.length() ).asJson().getBody().getObject(); // throws UnirestException
+        final JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "filesize", file.length() ).accept( ContentType.APPLICATION_JSON ).asJson().getBody().getObject(); // throws UnirestException
         final JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
         if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__JOB_DOES_NOT_EXIST ) {
@@ -535,6 +535,7 @@ public class ChronosHttpClient {
             HttpResponse<JsonNode> jsonResponse = Unirest.post( url )
                     .field( "name", "result" )
                     .field( "result", fis, ContentType.APPLICATION_OCTET_STREAM, "results.zip" )
+                    .accept( ContentType.APPLICATION_JSON )
                     .asJson();
             // Get result
             String resultString = jsonResponse.getBody().toString();
@@ -578,7 +579,7 @@ public class ChronosHttpClient {
             parametersJson.put( parameter.getKey().toString(), parameter.getValue().toString() );
         }
 
-        return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "result", parametersJson ).asJson() ); // throws UnirestException
+        return isSuccess( Unirest.patch( getUrl( address, port, ChronosRestApi.JOB, query ) ).field( "result", parametersJson ).accept( ContentType.APPLICATION_JSON ).asJson() ); // throws UnirestException
     }
 
 
@@ -852,6 +853,7 @@ public class ChronosHttpClient {
                         JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) )
                                 .field( "recordSequenceNumber", sequenceNumber.incrementAndGet() )
                                 .field( "log", message )
+                                .accept( ContentType.APPLICATION_JSON )
                                 .asJson().getBody().getObject();
                         JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
 
