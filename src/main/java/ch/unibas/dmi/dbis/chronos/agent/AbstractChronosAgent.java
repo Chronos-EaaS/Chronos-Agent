@@ -300,6 +300,7 @@ public abstract class AbstractChronosAgent extends Thread {
                     }
 
                     // (5.11) Remove the logger
+                    chronosLogHandler.flush();
                     removeChronosLogHandler( chronosLogHandler );
                 }
 
