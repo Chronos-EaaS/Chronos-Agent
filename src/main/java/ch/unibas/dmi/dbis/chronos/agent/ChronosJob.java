@@ -109,33 +109,6 @@ public class ChronosJob implements Serializable {
     }
 
 
-    /**
-     * Copy-Constructor
-     */
-    protected ChronosJob( final ChronosJob job ) {
-        this.id = job.id;
-
-        this.username = job.username;
-        this.userId = job.userId;
-
-        this.name = job.name;
-        this.description = job.description;
-
-        this.system = job.system;
-        this.environment = job.environment;
-
-        this.cdl = job.cdl;
-
-        this.status = job.status;
-
-        this.created = job.created;
-        this.started = job.started;
-        this.finished = job.finished;
-
-        this.phases = job.phases;
-    }
-
-
     @Override
     public boolean equals( Object obj ) {
         if ( obj == null ) {
