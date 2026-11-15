@@ -299,9 +299,9 @@ public abstract class AbstractChronosAgent extends Thread {
                         log.debug( "This job was not observed.", ex );
                     }
 
-                    // (5.11) Remove the logger
-                    chronosLogHandler.flush();
+                    // (5.11) Detach before flushing so upload failures cannot enqueue more log messages.
                     removeChronosLogHandler( chronosLogHandler );
+                    chronosLogHandler.flush();
                 }
 
                 // (6) --
