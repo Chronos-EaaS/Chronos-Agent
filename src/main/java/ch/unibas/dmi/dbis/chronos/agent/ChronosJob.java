@@ -109,6 +109,23 @@ public class ChronosJob implements Serializable {
     }
 
 
+    protected ChronosJob( ChronosJob other ) {
+        this.id = other.id;
+        this.username = other.username;
+        this.userId = other.userId;
+        this.name = other.name;
+        this.description = other.description;
+        this.system = other.system;
+        this.environment = other.environment;
+        this.cdl = other.cdl;
+        this.status = other.status;
+        this.created = other.created;
+        this.started = other.started;
+        this.finished = other.finished;
+        this.phases = other.phases;
+    }
+
+
     @Override
     public boolean equals( Object obj ) {
         if ( obj == null ) {
@@ -181,4 +198,5 @@ public class ChronosJob implements Serializable {
     public String toString() {
         return "ChronosJob{" + "id=" + id + ", name=" + name + ", system=" + system + ", username=" + username + '}';
     }
+
 }
