@@ -200,8 +200,13 @@ public abstract class AbstractChronosAgent extends Thread {
 
                 // (2) Set the job's status to RUNNING
                 if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.RUNNING ) ) {
-                    log.warn( "Cannot set JobStatus to RUNNING. ChronosHttpClient.setStatus returned false." );
-                    // TODO: Throw some exception instead?
+                    String message = "Chronos Control did not confirm RUNNING for job " + job.id;
+                    if ( singleJobId != null ) {
+                        throw new ChronosException( message );
+                    }
+                    log.warn( message );
+                    SLEEPING_TIME_UNIT.sleep( SLEEPING_TIME_VALUE );
+                    continue mainLoop;
                 }
 
                 // (3) --
@@ -264,7 +269,9 @@ public abstract class AbstractChronosAgent extends Thread {
                     this.chronos.upload( job, outputZipFile, zipResults ); // throws IllegalArgumentException, NoSuchElementException, ChronosException, IOException, InterruptedException
 
                     // (5.9) Job is done
-                    this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED );
+                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED ) ) {
+                        throw new ChronosException( "Chronos Control did not confirm FINISHED for job " + job.id );
+                    }
                     log.info( job.toString() + " has now the state FINISHED." );
 
                 } catch ( InterruptedException ex ) {
@@ -291,26 +298,27 @@ public abstract class AbstractChronosAgent extends Thread {
                         throw ex;
                     }
                 } finally {
-                    // (5.10) De-register the job at the observer
                     try {
-                        this.abortedMonitor.cancelObservation( job );
-                    } catch ( NoSuchElementException ex ) {
-                        // There the job was not in the tasks list
-                        log.debug( "This job was not observed.", ex );
+                        // (5.10) De-register the job at the observer
+                        try {
+                            this.abortedMonitor.cancelObservation( job );
+                        } catch ( NoSuchElementException ex ) {
+                            log.debug( "This job was not observed.", ex );
+                        }
+
+                        // (5.11) Detach before draining so upload failures cannot enqueue new records.
+                        removeChronosLogHandler( chronosLogHandler );
+                    } finally {
+                        try {
+                            chronosLogHandler.close();
+                        } catch ( InterruptedException ex ) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            // (7) Delete the complete job environment, including any partial output.
+                            FileUtils.deleteQuietly( tempDirectory );
+                        }
                     }
-
-                    // (5.11) Detach before flushing so upload failures cannot enqueue more log messages.
-                    removeChronosLogHandler( chronosLogHandler );
-                    chronosLogHandler.flush();
                 }
-
-                // (6) --
-
-                // (7) Delete environment
-                FileUtils.deleteQuietly( outputZipFile );
-                FileUtils.deleteQuietly( outputDirectory );
-                FileUtils.deleteQuietly( inputDirectory );
-                FileUtils.deleteQuietly( tempDirectory );
             } // mainLoop
 
         } catch ( InterruptedException ex ) {
@@ -327,9 +335,9 @@ public abstract class AbstractChronosAgent extends Thread {
             if ( singleJobId != null ) {
                 throw new RuntimeException( ex );
             }
+        } finally {
+            this.agent = null;
         }
-
-        this.agent = null;
     }
 
 
