@@ -13,7 +13,7 @@ This library is compatible with Java version 11 and higher.
 
 
 ## Roadmap
-See the [open issues](https://github.com/Chronos-EaaS/Chronos-Agent/issues) for a list of proposed features (and known issues).
+See the [open issues](https://github.com/Chronos-EaaS/Chronos-Agent-Java/issues) for a list of proposed features (and known issues).
 
 
 ## Contributing

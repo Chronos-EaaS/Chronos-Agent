@@ -85,7 +85,7 @@ publishing {
                     }
                 }
                 scm {
-                    url.set('https://github.com/Chronos-EaaS/Chronos-Agent/')
+                    url.set('https://github.com/Chronos-EaaS/Chronos-Agent-Java/')
                 }
                 developers {
                     developer {
@@ -110,7 +110,7 @@ publishing {
         }
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/chronos-eaas/chronos-agent")
+            url = uri("https://maven.pkg.github.com/chronos-eaas/chronos-agent-java")
             credentials {
                 username = System.getenv("GITHUB_ACTOR")
                 password = System.getenv("GITHUB_TOKEN")
