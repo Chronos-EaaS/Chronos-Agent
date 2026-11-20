@@ -30,17 +30,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.util.Deque;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import kong.unirest.core.ContentType;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.JsonNode;
@@ -116,10 +112,11 @@ public class ChronosHttpClient {
 
 
     private boolean isSuccess( HttpResponse<JsonNode> response ) {
-        if ( !response.isSuccess() ) {
+        if ( !response.isSuccess() || response.getBody() == null || response.getBody().isArray() ) {
             return false;
         }
-        return response.getBody().getObject().getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY ).getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
+        JSONObject status = response.getBody().getObject().optJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
+        return status != null && status.optInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS;
     }
 
 
@@ -391,7 +388,9 @@ public class ChronosHttpClient {
 
         executeUpload( job, file, uploadConfiguration );
 
-        notifyChronos( job, uploadConfiguration, parameters );
+        if ( !notifyChronos( job, uploadConfiguration, parameters ) ) {
+            throw new ChronosException( "Chronos Control did not confirm result metadata for job " + job.id );
+        }
     }
 
 
@@ -815,84 +814,119 @@ public class ChronosHttpClient {
      */
     public final class ChronosLogHandler {
 
+        private static final int MAX_ATTEMPTS = 2;
+        private static final int CLOSE_TIMEOUT_SECONDS = 5;
+
         private final ExecutorService executor;
-        private final Deque<Future<?>> pendingMessages;
-
         private final Properties query;
-
-        final AtomicInteger sequenceNumber = new AtomicInteger();
-
-        final static int MAX_RETRIES = 2;
+        private int sequenceNumber;
+        private volatile Thread uploadThread;
+        private long submitted;
+        private long completed;
+        private volatile boolean cancelled;
 
 
         public ChronosLogHandler( final ChronosJob job ) {
-            this.executor = Executors.newSingleThreadExecutor();
-            this.pendingMessages = new ConcurrentLinkedDeque<>();
-
+            this.executor = Executors.newSingleThreadExecutor( task -> {
+                uploadThread = new Thread( task, "chronos-log-" + job.id );
+                uploadThread.setDaemon( true );
+                return uploadThread;
+            } );
             this.query = getQuery( job, "appendLog" );
         }
 
 
-        public void publish( String message ) {
-            if ( executor.isShutdown() || executor.isTerminated() ) {
+        public synchronized void publish( String message ) {
+            // An appender can forward diagnostics emitted by the upload itself.
+            if ( executor.isShutdown() || Thread.currentThread() == uploadThread ) {
                 return;
             }
-
-            pendingMessages.add( executor.submit( () -> {
-                int attempt = 0;
-                while ( attempt < MAX_RETRIES ) {
-                    if ( attempt > 0 ) {
-                        try {
-                            TimeUnit.MILLISECONDS.sleep( 500 );
-                        } catch ( InterruptedException e ) {
-                            Thread.currentThread().interrupt();
-                            return;
-                        }
+            executor.execute( () -> {
+                try {
+                    uploadMessage( message );
+                } catch ( RuntimeException ex ) {
+                    log.warn( "Exception while publishing a log record.", ex );
+                } finally {
+                    synchronized ( this ) {
+                        completed++;
+                        notifyAll();
                     }
-                    try {
-                        JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) )
-                                .field( "recordSequenceNumber", sequenceNumber.incrementAndGet() )
-                                .field( "log", message )
-                                .accept( ContentType.APPLICATION_JSON )
-                                .asJson().getBody().getObject();
-                        JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
-
-                        if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                            return; // Success, exit retry loop
-                        } else {
-                            log.warn( "Service returned: {}: {}",
-                                    status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
-                                    status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
-                        }
-                    } catch ( UnirestException ex ) {
-                        log.debug( "Exception while publishing log records. Attempt {}: {}", attempt + 1, MAX_RETRIES + 1, ex );
-                    }
-                    attempt++;
                 }
-                log.warn( "Failed to publish log after {} attempts", MAX_RETRIES + 1 );
-            } ) );
+            } );
+            submitted++;
         }
 
 
-        public void flush() throws InterruptedException {
-            while ( !pendingMessages.isEmpty() ) {
-                try {
-                    pendingMessages.pollFirst().get();
-                } catch ( java.util.concurrent.ExecutionException ex ) {
-                    log.warn( "Exception while flushing the log.", ex );
-                } catch ( InterruptedException ex ) {
-                    log.warn( "Exception while flushing the log.", ex );
-                    throw ex;
+        private void uploadMessage( String message ) {
+            for ( int attempt = 1; attempt <= MAX_ATTEMPTS && !cancelled; attempt++ ) {
+                if ( attempt > 1 ) {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep( 500 );
+                    } catch ( InterruptedException ex ) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
+                try {
+                    JSONObject jsonResponse = Unirest.post( getUrl( address, port, ChronosRestApi.JOB, query ) )
+                            .field( "recordSequenceNumber", ++sequenceNumber )
+                            .field( "log", message )
+                            .accept( ContentType.APPLICATION_JSON )
+                            .asJson().getBody().getObject();
+                    JSONObject status = jsonResponse.getJSONObject( ChronosRestApi.STATUS_OBJECT_KEY );
+
+                    if ( status.getInt( ChronosRestApi.STATUS_CODE_KEY ) == ChronosRestApi.STATUS_CODE__SUCCESS ) {
+                        return;
+                    }
+                    log.warn( "Service returned: {}: {}",
+                            status.getInt( ChronosRestApi.STATUS_CODE_KEY ),
+                            status.getString( ChronosRestApi.STATUS_MESSAGE_KEY ) );
+                } catch ( UnirestException ex ) {
+                    log.debug( "Exception while publishing log records. Attempt {} of {}", attempt, MAX_ATTEMPTS, ex );
+                }
+            }
+            if ( !cancelled ) {
+                log.warn( "Failed to publish log after {} attempts", MAX_ATTEMPTS );
             }
         }
 
 
-        public void close() throws SecurityException, InterruptedException {
-            executor.shutdown();
-            flush();
+        /** Wait for previously submitted records to finish or for shutdown to cancel them. */
+        public synchronized void flush() throws InterruptedException {
+            // The single worker finishes uploads in submission order.
+            long target = submitted;
+            while ( completed < target && !cancelled && Thread.currentThread() != uploadThread ) {
+                wait();
+            }
         }
 
-    }
 
+        /** Stop accepting records and give the worker up to five seconds to finish pending uploads. */
+        public void close() throws SecurityException, InterruptedException {
+            close( CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+        }
+
+
+        void close( long timeout, TimeUnit unit ) throws InterruptedException {
+            synchronized ( this ) {
+                executor.shutdown();
+            }
+            try {
+                if ( !executor.awaitTermination( timeout, unit ) ) {
+                    cancelUploads();
+                    log.warn( "Log uploads exceeded the shutdown timeout. Remaining records were cancelled." );
+                }
+            } catch ( InterruptedException ex ) {
+                cancelUploads();
+                throw ex;
+            }
+        }
+
+
+        private synchronized void cancelUploads() {
+            cancelled = true;
+            executor.shutdownNow();
+            notifyAll();
+        }
+    }
 }
