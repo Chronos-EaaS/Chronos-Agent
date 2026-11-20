@@ -536,10 +536,9 @@ public class ChronosHttpClient {
                     .field( "result", fis, ContentType.APPLICATION_OCTET_STREAM, "results.zip" )
                     .accept( ContentType.APPLICATION_JSON )
                     .asJson();
-            // Get result
-            String resultString = jsonResponse.getBody().toString();
-            if ( jsonResponse.getStatus() != ChronosRestApi.STATUS_CODE__SUCCESS ) {
-                log.warn( resultString );
+            if ( !isSuccess( jsonResponse ) ) {
+                throw new ChronosException( "Chronos Control did not confirm the ZIP upload for job " + job.id
+                        + " (HTTP " + jsonResponse.getStatus() + ")." );
             }
         } catch ( UnirestException e ) {
             log.warn( "Exception in HTTP upload", e );

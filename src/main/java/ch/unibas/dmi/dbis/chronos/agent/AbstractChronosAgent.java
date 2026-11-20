@@ -234,68 +234,8 @@ public abstract class AbstractChronosAgent extends Thread {
 
                 // (5) Execute the job
                 try {
-                    log.info( job.toString() + " has now the state RUNNING." );
-                    final Properties executionResults;
-
-                    // (5.1) Register the job at the observer
-                    this.abortedMonitor.observe( job );
-
-                    // (5.2) Actual execution
-                    // EXECUTE THE PHASES
-                    executionResults = this.executePhases( job, inputDirectory, outputDirectory );
-
-                    // (5.3) --
-
-                    // (5.4) Save the Properties as json
-                    this.saveResults( executionResults, outputDirectory );
-
-                    // (5.5) Save the cdl (archiving)
-                    this.saveCdl( job, outputDirectory );
-
-                    // (5.6) Build package
-                    try {
-                        this.copyResults( job, outputDirectory );
-                    } catch ( IOException ex ) {
-                        log.warn( "Exception storing the results locally.", ex );
-                    }
-
-                    // (5.7) Zipping
-                    final Properties zipResults = new Properties();
-                    zipResults.putAll( executionResults );
-                    zipResults.putAll( this.zip( job, outputDirectory, outputZipFile ) );
-
-                    // (5.8) Upload
-                    log.info( "Uploading results for " + job.toString() );
-                    this.chronos.upload( job, outputZipFile, zipResults ); // throws IllegalArgumentException, NoSuchElementException, ChronosException, IOException, InterruptedException
-
-                    // (5.9) Job is done
-                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED ) ) {
-                        throw new ChronosException( "Chronos Control did not confirm FINISHED for job " + job.id );
-                    }
-                    log.info( job.toString() + " has now the state FINISHED." );
-
-                } catch ( InterruptedException ex ) {
-                    // (5.e) Reset execution status to ABORTED since we have been interrupted
-                    log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
-
-                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.ABORTED ) ) {
-                        log.error( "Cannot reset job " + job.toString() + " to status ABORTED." );
-                    }
-                    this.aborted( job );
-
-                    throw ex; // "Notify" higher levels
-
-                } catch ( Exception ex ) {
-                    // (5.e) Reset execution status to FAILED for various reasons: ExecutionException, job is not accepted, etc.
-                    log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
-
-                    if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FAILED ) ) {
-                        log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
-                    }
-                    this.failed( job );
-
-                    if ( singleJobId != null ) {
-                        throw ex;
+                    if ( executeAndUploadJob( job, inputDirectory, outputDirectory, outputZipFile ) ) {
+                        finishJob( job );
                     }
                 } finally {
                     try {
@@ -338,6 +278,92 @@ public abstract class AbstractChronosAgent extends Thread {
         } finally {
             this.agent = null;
         }
+    }
+
+
+    private boolean executeAndUploadJob( ChronosJob job, File inputDirectory, File outputDirectory, File outputZipFile )
+            throws ExecutionException, ChronosException, IOException, InterruptedException {
+        try {
+            log.info( job.toString() + " has now the state RUNNING." );
+            final Properties executionResults;
+
+            // (5.1) Register the job at the observer
+            this.abortedMonitor.observe( job );
+
+            // (5.2) Actual execution
+            // EXECUTE THE PHASES
+            executionResults = this.executePhases( job, inputDirectory, outputDirectory );
+
+            // (5.3) --
+
+            // (5.4) Save the Properties as json
+            this.saveResults( executionResults, outputDirectory );
+
+            // (5.5) Save the cdl (archiving)
+            this.saveCdl( job, outputDirectory );
+
+            // (5.6) Build package
+            try {
+                this.copyResults( job, outputDirectory );
+            } catch ( IOException ex ) {
+                log.warn( "Exception storing the results locally.", ex );
+            }
+
+            // (5.7) Zipping
+            final Properties zipResults = new Properties();
+            zipResults.putAll( executionResults );
+            zipResults.putAll( this.zip( job, outputDirectory, outputZipFile ) );
+
+            // (5.8) Upload
+            log.info( "Uploading results for " + job.toString() );
+            this.chronos.upload( job, outputZipFile, zipResults ); // throws IllegalArgumentException, NoSuchElementException, ChronosException, IOException, InterruptedException
+            return true;
+        } catch ( InterruptedException ex ) {
+            // (5.e) Reset execution status to ABORTED since we have been interrupted
+            log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
+
+            if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.ABORTED ) ) {
+                log.error( "Cannot reset job " + job.toString() + " to status ABORTED." );
+            }
+            this.aborted( job );
+
+            throw ex; // "Notify" higher levels
+
+        } catch ( Exception ex ) {
+            // (5.e) Reset execution status to FAILED for various reasons: ExecutionException, job is not accepted, etc.
+            log.warn( "Job " + job.toString() + " FAILED. Reason is:", ex );
+
+            if ( !this.chronos.setStatus( job, ChronosHttpClient.JobStatus.FAILED ) ) {
+                log.error( "Cannot reset job " + job.toString() + " to status FAILED." );
+            }
+            this.failed( job );
+
+            if ( singleJobId != null ) {
+                throw ex;
+            }
+            return false;
+        }
+    }
+
+
+    private void finishJob( ChronosJob job ) throws ChronosException, InterruptedException {
+        // Control may have committed FINISHED even if its reply was lost.
+        try {
+            if ( !chronos.setStatus( job, ChronosHttpClient.JobStatus.FINISHED ) ) {
+                ChronosHttpClient.JobStatus stored = chronos.getStatus( job );
+                if ( stored != ChronosHttpClient.JobStatus.FINISHED ) {
+                    throw new ChronosException( "Control reports " + stored + " for job " + job.id );
+                }
+            }
+        } catch ( ChronosException | IOException | RuntimeException ex ) {
+            String message = "Could not confirm FINISHED for job " + job.id + " after its results were uploaded.";
+            if ( singleJobId != null ) {
+                throw new ChronosException( message, ex );
+            }
+            log.error( message, ex );
+            return;
+        }
+        log.info( job.toString() + " has now the state FINISHED." );
     }
 
 
