@@ -27,8 +27,12 @@ public class JobLifecycleTest {
     private HttpServer control;
     private TestAgent agent;
     private volatile String rejectPatch = "";
+    private volatile int storedStatus;
+    private volatile boolean applyPatchBeforeError;
+    private volatile boolean failStatusReadback;
     private volatile boolean omitStatus;
     private final List<String> updates = new CopyOnWriteArrayList<>();
+    private volatile boolean rejectZip;
 
 
     @Before
@@ -67,6 +71,15 @@ public class JobLifecycleTest {
 
 
     @Test
+    public void rejectedZipFailsJobBeforePublishingResults() {
+        rejectZip = true;
+        assertJobError();
+        assertTrue( agent.failed );
+        assertEquals( List.of( "status=2", "zip", "status=-2" ), updates );
+    }
+
+
+    @Test
     public void rejectedResultMetadataFailsJobAfterZipUpload() {
         rejectPatch = "result";
         assertJobError();
@@ -77,11 +90,37 @@ public class JobLifecycleTest {
 
 
     @Test
-    public void rejectedFinishedIsReportedAsFailure() {
+    public void rejectedFinishedReportsUnconfirmedCompletionAndPreservesStoredStatus() {
         rejectPatch = "status=3";
         assertJobError();
-        assertTrue( agent.failed );
-        assertEquals( List.of( "status=2", "zip", "result", "status=3", "status=-2" ), updates );
+        assertFalse( agent.failed );
+        assertEquals( 2, storedStatus );
+        assertEquals( List.of( "status=2", "zip", "result", "status=3" ), updates );
+    }
+
+
+    @Test
+    public void lostFinishedReplyIsConfirmedByReadingStoredStatus() {
+        rejectPatch = "status=3";
+        applyPatchBeforeError = true;
+        agent.run();
+        assertFalse( agent.failed );
+        assertEquals( 3, storedStatus );
+        assertEquals( List.of( "status=2", "zip", "result", "status=3" ), updates );
+        assertFalse( agent.jobDirectory.exists() );
+    }
+
+
+    @Test
+    public void failedReadbackLeavesCommittedFinishedStatusIntact() {
+        rejectPatch = "status=3";
+        applyPatchBeforeError = true;
+        failStatusReadback = true;
+        assertJobError();
+        assertFalse( agent.failed );
+        assertEquals( 3, storedStatus );
+        assertEquals( List.of( "status=2", "zip", "result", "status=3" ), updates );
+        assertFalse( agent.jobDirectory.exists() );
     }
 
 
@@ -107,8 +146,9 @@ public class JobLifecycleTest {
             JSONObject response = new JSONObject().put( "status", new JSONObject().put( "code", 200 ) );
             boolean rejected = false;
             if ( exchange.getRequestMethod().equals( "GET" ) ) {
+                rejected = failStatusReadback && updates.contains( "status=3" );
                 response.put( "response", new JSONObject()
-                        .put( "id", 1 ).put( "user", 1 ).put( "status", 0 )
+                        .put( "id", 1 ).put( "user", 1 ).put( "status", storedStatus )
                         .put( "system", "test" ).put( "username", "test" ).put( "name", "job" )
                         .put( "description", "" ).put( "cdl", "" ).put( "created", "" ) );
             } else if ( path.contains( "getUploadTarget" ) ) {
@@ -116,10 +156,16 @@ public class JobLifecycleTest {
                         .put( "hostname", "http://127.0.0.1:" + control.getAddress().getPort() ).put( "path", "/uploads" ) );
             } else if ( path.startsWith( "/uploads/" ) ) {
                 updates.add( "zip" );
+                if ( rejectZip ) {
+                    response.getJSONObject( "status" ).put( "code", 600 );
+                }
             } else if ( exchange.getRequestMethod().equals( "PATCH" ) ) {
                 String update = body.startsWith( "result=" ) ? "result" : body;
                 updates.add( update );
                 rejected = update.equals( rejectPatch );
+                if ( update.startsWith( "status=" ) && (!rejected || applyPatchBeforeError) ) {
+                    storedStatus = Integer.parseInt( update.substring( "status=".length() ) );
+                }
                 if ( omitStatus ) {
                     response = new JSONObject();
                 }
